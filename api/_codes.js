@@ -70,6 +70,10 @@ module.exports = [
     title: "15% instant credit to use toward pillows, mattress protectors, linens when you buy a mattress $299+",
     appliesTo: "Mattress", requires: "Mattress $299+; customer spends the credit on pillows/protectors/linens in the same purchase",
     excludes: "As-Is, Tempur-Pedic, online only items, Skechers", notes: "Must be used at time of mattress purchase." },
+  { code: "SA9", sheet: S1, ...D2627, type: "pct", value: 20, dept: "Mattress",
+    title: "Ontario only - 20% instant credit to use toward pillows, mattress protectors, linens when you buy a mattress $299+",
+    appliesTo: "Mattress", requires: "Mattress $299+; customer spends the credit on pillows/protectors/linens (sheets) in the same purchase",
+    excludes: "As-Is, Tempur-Pedic, online only items, Skechers", notes: "Must be used at time of mattress purchase." },
   { code: "BGR", sheet: S1, ...D2627, type: "pct", value: 50, dept: "Mattress",
     title: "50% off Bedgear sheets", appliesTo: "Bedgear sheets", excludes: "Clearance", conflicts: ["BGG", "BGO"] },
 
