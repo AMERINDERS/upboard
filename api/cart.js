@@ -2,6 +2,7 @@
 // Everything needs the cart PIN (CART_PIN env var in Vercel). Uses its own Redis keys (cart:*), never the board's.
 //   GET  /api/cart?a=meta | codes | warranty | search&q=...
 //   POST /api/cart?a=sync  {phase:"start"|"pages"|"finish", start}   -- copies the catalog in small steps
+//   GET  /api/cart?a=lookup&url=<thebrick.com product link>  -- adds one product straight from the website
 //   GET  /api/cart?a=mycart&who=Name  /  POST /api/cart?a=mycart {who, cart}  -- one saved cart per salesperson
 
 const CODES = require("./_codes.js");
@@ -11,6 +12,9 @@ const ZONE = "ZBC";            // price zone for store 4P St. Catharines (from t
 const SITE = process.env.BRICK_SITE || "https://www.thebrick.com";
 const PAGES_PER_STEP = 15;     // 30 products per page -> 450 products per step, one page at a time
 const MAX_PAGE = 834;          // Shopify stops at 25,000 products (page x 30)
+// The main list only reaches the newest 25,000 products, so the departments are copied too (each is under 25,000).
+const COLLECTIONS = ["all-furniture-mattresses-excludes-online-only", "appliances", "electronics", "home-decor", "outdoor"];
+const TOTAL_PAGES_EST = 834 + Math.ceil((11579 + 9486 + 2259 + 23242 + 5100) / 30);
 
 const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -40,11 +44,13 @@ async function catalog() {
   if (meta.version !== cache.version) {
     const keys = [];
     for (let i = 0; i < meta.batches; i++) keys.push(`cart:cat:${meta.version}:${i}`);
-    const items = [];
+    const items = [], seen = new Set();
+    const add = (arr) => { for (const it of arr) if (!seen.has(it[0])) { seen.add(it[0]); items.push(it); } };
     for (let i = 0; i < keys.length; i += 4) {
       const vals = await redis(["MGET", ...keys.slice(i, i + 4)]);
-      for (const v of vals) if (v) items.push(...JSON.parse(v));
+      for (const v of vals) if (v) add(JSON.parse(v));
     }
+    add((await getJSON("cart:cat:extra")) || []);
     cache = { version: meta.version, items, checkedAt: Date.now(), meta };
   }
   cache.meta = meta;
@@ -93,9 +99,10 @@ function pick(p) {
 
 class SlowDown extends Error {}
 
-async function fetchPage(n) {
+async function fetchPage(n, col) {
+  const url = col ? `${SITE}/collections/${col}/products.json?page=${n}` : `${SITE}/products.json?page=${n}`;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const r = await fetch(`${SITE}/products.json?page=${n}`, { headers: { "User-Agent": "UpBoard-4P-cart/1.0", Accept: "application/json" } });
+    const r = await fetch(url, { headers: { "User-Agent": "UpBoard-4P-cart/1.0", Accept: "application/json" } });
     if (r.status === 429 || r.status >= 500) { await new Promise((s) => setTimeout(s, 3000)); continue; }
     if (!r.ok) return { done: true, products: [] };
     const j = await r.json();
@@ -114,22 +121,28 @@ async function syncStep(body) {
   const job = await getJSON("cart:cat:sync");
   if (!job) throw new Error("No catalog update in progress - press the button again");
 
-  if (phase === "pages") {
+  if (phase === "pages" || phase === "cols") {
+    const ci = +body.ci || 0;
+    const col = phase === "cols" ? COLLECTIONS[ci] : null;
     const start = Math.max(1, +body.start || 1);
     const end = Math.min(MAX_PAGE, start + PAGES_PER_STEP - 1);
     const items = [];
-    let done = false;
+    let done = false, fetched = 0;
     for (let n = start; n <= end; n++) {
-      const pg = await fetchPage(n);
+      const pg = await fetchPage(n, col);
+      fetched++;
       for (const p of pg.products) { const it = pick(p); if (it) items.push(it); }
       if (pg.done) { done = true; break; }
       await new Promise((s) => setTimeout(s, 800)); // be gentle with the site: about 1 page a second
     }
     await redis(["SET", `cart:cat:${job.version}:${job.batches}`, JSON.stringify(items), "EX", "1209600"]);
-    job.batches++; job.count += items.length;
+    job.batches++; job.count += items.length; job.pages = (job.pages || 0) + fetched;
     await setJSON("cart:cat:sync", job);
-    if (done || end >= MAX_PAGE) return { phase: "finish", count: job.count };
-    return { phase: "pages", start: end + 1, count: job.count, progress: Math.round((end / MAX_PAGE) * 100) };
+    const progress = Math.min(99, Math.round((job.pages / TOTAL_PAGES_EST) * 100));
+    if (!done && end < MAX_PAGE) return { phase, ci, start: end + 1, count: job.count, progress };
+    const nextCi = phase === "pages" ? 0 : ci + 1;
+    if (nextCi < COLLECTIONS.length) return { phase: "cols", ci: nextCi, start: 1, count: job.count, progress };
+    return { phase: "finish", count: job.count };
   }
 
   if (phase === "finish") {
@@ -161,6 +174,19 @@ module.exports = async (req, res) => {
       if (a === "warranty") return res.json({ warranty: WARRANTY.map((c) => ({ ...c, match: c.match ? c.match.source : null })) });
       if (a === "meta") { const c = await catalog(); return res.json({ zone: ZONE, store: "4P St. Catharines", catalog: c.meta || null, sync: await getJSON("cart:cat:sync") }); }
       if (a === "search") { const c = await catalog(); return res.json({ results: search(c.items, req.query.q), count: c.items.length }); }
+      if (a === "lookup") {
+        const m = String(req.query.url || "").match(/\/products\/([a-z0-9][a-z0-9-]*)/i);
+        if (!m) return res.status(400).json({ error: "Paste a thebrick.com product link (it has /products/ in it)" });
+        const r = await fetch(`${SITE}/products/${m[1].toLowerCase()}.json`, { headers: { "User-Agent": "UpBoard-4P-cart/1.0", Accept: "application/json" } });
+        if (!r.ok) return res.status(404).json({ error: "That product link didn't work on thebrick.com" });
+        const it = pick((await r.json()).product || {});
+        if (!it) return res.status(404).json({ error: "This product has no price for the St. Catharines store" });
+        const extra = ((await getJSON("cart:cat:extra")) || []).filter((x) => x[0] !== it[0]);
+        extra.unshift(it);
+        await setJSON("cart:cat:extra", extra.slice(0, 3000));
+        cache.checkedAt = 0; cache.version = null;
+        return res.json({ results: [{ sku: it[0], title: it[1], vendor: it[2], type: it[3], price: it[4], regular: it[5], handle: it[6] }], count: 1 });
+      }
       if (a === "mycart") {
         const who = whoKey(req.query.who);
         if (!who) return res.status(400).json({ error: "Enter your name" });
