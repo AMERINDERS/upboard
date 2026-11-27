@@ -9,7 +9,7 @@ const WARRANTY = require("./_warranty.js");
 
 const ZONE = "ZBC";            // price zone for store 4P St. Catharines (from thebrick.com store selector)
 const SITE = process.env.BRICK_SITE || "https://www.thebrick.com";
-const PAGES_PER_STEP = 30;     // 30 products per page -> 900 products per step
+const PAGES_PER_STEP = 15;     // 30 products per page -> 450 products per step, one page at a time
 const MAX_PAGE = 834;          // Shopify stops at 25,000 products (page x 30)
 
 const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
@@ -91,15 +91,17 @@ function pick(p) {
   return [String(v.sku).toUpperCase().trim(), title, p.vendor || "", p.product_type || "", price, cmp && cmp > price ? cmp : null, p.handle];
 }
 
+class SlowDown extends Error {}
+
 async function fetchPage(n) {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     const r = await fetch(`${SITE}/products.json?page=${n}`, { headers: { "User-Agent": "UpBoard-4P-cart/1.0", Accept: "application/json" } });
-    if (r.status === 429 || r.status >= 500) { await new Promise((s) => setTimeout(s, 1500 * (attempt + 1))); continue; }
+    if (r.status === 429 || r.status >= 500) { await new Promise((s) => setTimeout(s, 3000)); continue; }
     if (!r.ok) return { done: true, products: [] };
     const j = await r.json();
     return { done: (j.products || []).length < 30, products: j.products || [] };
   }
-  throw new Error("thebrick.com is not answering (page " + n + ")");
+  throw new SlowDown("thebrick.com asked us to slow down (page " + n + ")");
 }
 
 async function syncStep(body) {
@@ -117,11 +119,11 @@ async function syncStep(body) {
     const end = Math.min(MAX_PAGE, start + PAGES_PER_STEP - 1);
     const items = [];
     let done = false;
-    for (let n = start; n <= end; n += 3) {
-      const pages = await Promise.all([n, n + 1, n + 2].filter((x) => x <= end).map(fetchPage));
-      for (const pg of pages) { for (const p of pg.products) { const it = pick(p); if (it) items.push(it); } if (pg.done) done = true; }
-      if (done) break;
-      await new Promise((s) => setTimeout(s, 250)); // be gentle with the site
+    for (let n = start; n <= end; n++) {
+      const pg = await fetchPage(n);
+      for (const p of pg.products) { const it = pick(p); if (it) items.push(it); }
+      if (pg.done) { done = true; break; }
+      await new Promise((s) => setTimeout(s, 800)); // be gentle with the site: about 1 page a second
     }
     await redis(["SET", `cart:cat:${job.version}:${job.batches}`, JSON.stringify(items), "EX", "1209600"]);
     job.batches++; job.count += items.length;
@@ -182,7 +184,7 @@ module.exports = async (req, res) => {
     }
     res.status(400).json({ error: "Unknown request" });
   } catch (e) {
-    res.status(500).json({ error: e.message || "Server error" });
+    res.status(e instanceof SlowDown ? 503 : 500).json({ error: e.message || "Server error", retry: e instanceof SlowDown });
   }
 };
 
