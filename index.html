@@ -22,6 +22,10 @@
   header h1 { margin: 0; font-size: 20px; letter-spacing: .5px; font-weight: 800; }
   header .me { font-size: 14px; opacity: .95; display: flex; gap: 10px; align-items: center; }
   header .me button { background: rgba(255,255,255,.18); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+  .mgr { background: #fff !important; color: var(--red) !important; font-weight: 800; }
+  .mgr.on { background: var(--gold) !important; color: #422006 !important; }
+  #loginMgr { position: fixed; top: calc(env(safe-area-inset-top) + 14px); right: 16px; background: rgba(255,255,255,.18); color: #fff; padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 14px; }
+  .mgrbar { background: #422006; color: #fef3c7; padding: 10px 14px; border-radius: 12px; font-size: 14px; margin-bottom: 14px; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; display: inline-block; }
   .dot.off { background: #fbbf24; }
 
@@ -30,7 +34,6 @@
     box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.04); }
   .label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--mut); font-weight: 700; margin-bottom: 6px; }
 
-  /* login */
   #login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
     background: linear-gradient(160deg, var(--red) 0%, var(--red-d) 100%); }
   #login .card { width: 100%; max-width: 380px; padding: 28px 22px; }
@@ -42,7 +45,6 @@
   .big:active { transform: scale(.98); }
   .err { color: var(--red); font-size: 14px; min-height: 18px; margin-top: 8px; }
 
-  /* up next */
   #upnext { text-align: center; padding: 18px 16px; }
   #upnext .name { font-size: 32px; font-weight: 900; margin: 2px 0; }
   #upnext.mine { background: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
@@ -51,7 +53,6 @@
   #upnext .sub { color: var(--mut); font-size: 14px; }
   #upnext.mine .sub { color: #713f12; }
 
-  /* my controls */
   .status { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
   .status b { font-size: 22px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -63,10 +64,13 @@
   .act.power { background: linear-gradient(135deg, #f59e0b, var(--red)); grid-column: span 2; font-size: 21px; padding: 20px; }
   .act.free { background: var(--green); }
   .act.join { background: var(--red); grid-column: span 2; }
+  .act.brk { background: #92400e; }
+  .act.back { background: var(--green); grid-column: span 2; }
+  .act.missw { background: #4b5563; grid-column: span 2; }
+  .tag.k { background: #fde68a; color: #78350f; }
   .act[disabled] { opacity: .45; }
   .linkbtn { background: none; color: var(--mut); text-decoration: underline; font-size: 14px; padding: 10px 0 0; }
 
-  /* line */
   .row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--line); }
   .row:first-of-type { border-top: 0; }
   .pos { width: 34px; height: 34px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: 800; flex: none; }
@@ -82,7 +86,6 @@
   .more { background: var(--bg); width: 38px; height: 38px; border-radius: 10px; font-size: 20px; color: var(--mut); flex: none; }
   .empty { color: var(--mut); text-align: center; padding: 18px 0; }
 
-  /* leaderboard + log */
   table { width: 100%; border-collapse: collapse; font-size: 15px; }
   th, td { text-align: left; padding: 8px 4px; border-top: 1px solid var(--line); }
   th { font-size: 12px; color: var(--mut); text-transform: uppercase; border-top: 0; }
@@ -95,7 +98,6 @@
 
   .warn { background: #fef3c7; color: #78350f; padding: 12px 14px; border-radius: 12px; font-size: 14px; margin-bottom: 14px; }
 
-  /* sheet */
   #sheet { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; z-index: 20; }
   #sheet .panel { background: #fff; width: 100%; max-width: 640px; margin: 0 auto; border-radius: 18px 18px 0 0;
     padding: 18px 16px calc(env(safe-area-inset-bottom) + 18px); }
@@ -110,6 +112,7 @@
 
 <!-- LOGIN -->
 <section id="login">
+  <button id="loginMgr">🔑 Manager</button>
   <div class="card">
     <h1>Up Board</h1>
     <p>Enter your name to get on the floor.</p>
@@ -124,10 +127,12 @@
 <section id="board" class="hidden">
   <header>
     <h1>UP BOARD</h1>
-    <div class="me"><span class="dot" id="live"></span><span id="meName"></span><button id="logoutBtn">Log out</button></div>
+    <div class="me"><span class="dot" id="live"></span><span id="meName"></span><button id="logoutBtn">Log out</button><button id="mgrBtn" class="mgr">🔑 Manager</button></div>
   </header>
   <main>
     <div class="warn hidden" id="noStore">⚠️ Shared storage isn't connected yet, so phones won't stay in sync. In Vercel, connect an Upstash Redis database to this project and redeploy.</div>
+
+    <div class="mgrbar hidden" id="mgrBar">🔑 Manager mode: tap ⋯ next to anyone to make them up, power them up, move or remove them.</div>
 
     <div class="card" id="upnext">
       <div class="label">Up next</div>
@@ -163,9 +168,21 @@
       </details>
     </div>
 
-    <div style="text-align:center"><button class="linkbtn" id="resetBtn">Reset board for a new day</button></div>
+    <div style="text-align:center" id="resetWrap" class="hidden"><button class="linkbtn" id="resetBtn">Reset board for a new day</button></div>
   </main>
 </section>
+
+<!-- MANAGER PIN -->
+<div id="pinSheet" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:25;padding:20px">
+  <div class="card" style="width:100%;max-width:340px;margin:0">
+    <h3 style="margin:0 0 4px">Manager login</h3>
+    <p style="margin:0 0 14px;color:var(--mut);font-size:14px">Enter the manager PIN.</p>
+    <input id="mgrPinIn" type="password" placeholder="Manager PIN" autocomplete="off" autocapitalize="off" />
+    <button class="big" id="mgrPinGo">Unlock</button>
+    <div class="err" id="mgrErr"></div>
+    <button class="linkbtn" id="mgrCancel" style="width:100%">Cancel</button>
+  </div>
+</div>
 
 <!-- ACTION SHEET -->
 <div id="sheet" class="hidden">
@@ -184,6 +201,8 @@ const LS = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch {
 
 let me = LS.get("upboard.name");
 let pin = LS.get("upboard.pin");
+let mgrPin = LS.get("upboard.mgr");
+const isMgr = () => !!mgrPin;
 let state = null, wasMyTurn = false, polling = null, busy = false;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -196,7 +215,7 @@ function toast(msg) {
 
 async function api(method, body) {
   const r = await fetch("/api/board", {
-    method, headers: { "Content-Type": "application/json", "x-store-pin": pin },
+    method, headers: { "Content-Type": "application/json", "x-store-pin": pin, "x-manager-pin": mgrPin },
     body: body ? JSON.stringify(body) : undefined,
   });
   const j = await r.json().catch(() => ({ error: "Server error" }));
@@ -206,12 +225,12 @@ async function api(method, body) {
 
 async function act(action, name = me) {
   if (busy) return; busy = true;
-  try { state = await api("POST", { action, name, by: me }); render(); }
-  catch (e) { toast(e.message); if (e.status === 401) logout(); }
+  try { state = await api("POST", { action, name, by: me || "Manager" }); render(); }
+  catch (e) { toast(e.message); if (e.status === 401 && e.pinRequired) logout(); }
   finally { busy = false; }
 }
 
-/* ---------- login ---------- */
+// ---------- login ----------
 async function showLogin(msg) {
   $("board").classList.add("hidden"); $("login").classList.remove("hidden");
   $("nameIn").value = me || ""; $("loginErr").textContent = msg || "";
@@ -237,66 +256,72 @@ $("loginBtn").onclick = async () => {
 $("nameIn").onkeydown = $("pinIn").onkeydown = (e) => { if (e.key === "Enter") $("loginBtn").click(); };
 
 function logout() {
-  LS.del("upboard.name"); me = ""; clearInterval(polling); showLogin();
+  LS.del("upboard.name"); LS.del("upboard.mgr"); me = ""; mgrPin = ""; clearInterval(polling); showLogin();
 }
 $("logoutBtn").onclick = logout;
 
-/* ---------- board ---------- */
+// ---------- board ----------
 function startBoard() {
   $("login").classList.add("hidden"); $("board").classList.remove("hidden");
-  $("meName").textContent = me; render(); poll();
+  $("meName").textContent = me || ""; render(); poll();
   clearInterval(polling); polling = setInterval(() => { if (!document.hidden) poll(); }, 3000);
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden && me) poll(); });
 
 async function poll() {
   try { const s = await api("GET"); if (!busy) { state = s; render(); } $("live").classList.remove("off"); }
-  catch (e) { $("live").classList.add("off"); if (e.status === 401) logout(); }
+  catch (e) { $("live").classList.add("off"); if (e.status === 401 && e.pinRequired) logout(); }
 }
 
 function mins(t) { if (!t) return ""; const m = Math.floor((Date.now() - t) / 60000); return m < 1 ? "just now" : m + " min"; }
-function nextUp() { return state.line.find((k) => !state.people[k]?.busy); }
+const away = (p) => !p || p.busy || p.brk;
+function nextUp() { return state.line.find((k) => !away(state.people[k])); }
 
 function render() {
   if (!state) return;
   $("noStore").classList.toggle("hidden", !!state.sharedStorage);
+  $("mgrBar").classList.toggle("hidden", !isMgr());
+  $("resetWrap").classList.toggle("hidden", !isMgr());
+  $("mine").classList.toggle("hidden", !me);
+  const mb = $("mgrBtn"); mb.classList.toggle("on", isMgr()); mb.textContent = isMgr() ? "🔑 Manager ✓" : "🔑 Manager";
   const P = state.people, mk = key(me), mp = P[mk] || { name: me, ups: 0, sales: 0, missed: 0 };
   const inLine = state.line.includes(mk), pos = state.line.indexOf(mk) + 1;
-  const nk = nextUp(), myTurn = nk === mk;
+  const nk = nextUp(), myTurn = !!me && nk === mk;
 
   // up next
   const up = $("upnext");
   up.classList.toggle("mine", myTurn);
   $("upName").textContent = myTurn ? "YOU'RE UP!" : nk ? P[nk].name : "Nobody available";
-  const after = state.line.filter((k) => !P[k].busy && k !== nk).slice(0, 2).map((k) => P[k].name);
+  const after = state.line.filter((k) => !away(P[k]) && k !== nk).slice(0, 2).map((k) => P[k].name);
   $("upSub").textContent = after.length ? "Then: " + after.join(", ") : "";
   if (myTurn && !wasMyTurn) { try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch {} }
   wasMyTurn = myTurn;
   document.title = myTurn ? "🔴 YOU'RE UP — Up Board" : "Up Board";
 
   // my controls
-  $("myStatus").textContent = !inLine ? "Not on the board" : mp.busy ? `With customer · #${pos}` : `#${pos} in line`;
+  $("myStatus").textContent = !inLine ? "Not on the board" : mp.brk ? "On break" : mp.busy ? `With customer · #${pos}` : `#${pos} in line`;
   $("myStats").textContent = `${mp.ups} ups · ${mp.sales} sales · ${mp.missed} missed`;
   let b = "";
   if (!inLine) b = `<button class="act join" data-a="join">Join the line</button>`;
-  else {
-    b += mp.busy
-      ? `<button class="act free" data-a="free">Done<small>no sale</small></button>`
-      : `<button class="act with" data-a="withCustomer">With Customer<small>go to bottom</small></button>`;
-    b += `<button class="act miss" data-a="missed">Missed<small>go to bottom</small></button>`;
-    b += `<button class="act power" data-a="powerUp">⚡ POWER UP<small>made a sale</small></button>`;
+  else if (mp.brk) b = `<button class="act back" data-a="back">Back from break<small>go to bottom</small></button>`;
+  else if (mp.busy) {
+    b += `<button class="act power" data-a="powerUp">⚡ POWER UP<small>made a sale — back to the top</small></button>`;
+    b += `<button class="act missw" data-a="missed">Missed<small>no sale — go to bottom</small></button>`;
+  } else {
+    b += `<button class="act with" data-a="withCustomer">With Customer<small>go to bottom</small></button>`;
+    b += `<button class="act brk" data-a="break">Break<small>skip my ups</small></button>`;
   }
   $("myBtns").innerHTML = b;
-  $("leaveBtn").classList.toggle("hidden", !inLine);
+  $("leaveBtn").classList.add("hidden");
 
   // line
   $("line").innerHTML = state.line.length ? state.line.map((k, i) => {
-    const p = P[k]; const cls = ["row", k === nk ? "next" : "", k === mk ? "me" : "", p.busy ? "busy" : ""].join(" ");
+    const p = P[k]; const cls = ["row", k === nk ? "next" : "", k === mk ? "me" : "", away(p) ? "busy" : ""].join(" ");
     return `<div class="${cls}">
       <div class="pos">${i + 1}</div>
-      <div class="who"><div class="n">${esc(p.name)}${k === mk ? " (you)" : ""}${k === nk ? '<span class="tag n">UP</span>' : ""}${p.busy ? `<span class="tag b">WITH CUSTOMER ${mins(p.since)}</span>` : ""}</div>
+      <div class="who"><div class="n">${esc(p.name)}${k === mk ? " (you)" : ""}${k === nk ? '<span class="tag n">UP</span>' : ""}${p.busy ? `<span class="tag b">WITH CUSTOMER ${mins(p.since)}</span>` : ""}${p.brk ? `<span class="tag k">ON BREAK ${mins(p.since)}</span>` : ""}</div>
         <div class="stats">${p.ups} ups · ${p.sales} sales · ${p.missed} missed</div></div>
-      <button class="more" data-k="${esc(k)}" aria-label="Options for ${esc(p.name)}">⋯</button>
+      ${isMgr() ? `<button class="more" data-k="${esc(k)}" aria-label="Manage ${esc(p.name)}">⋯</button>` : ""}
     </div>`;
   }).join("") : `<div class="empty">No one on the board yet.</div>`;
 
@@ -314,15 +339,16 @@ $("myBtns").onclick = (e) => { const a = e.target.closest("[data-a]")?.dataset.a
 $("leaveBtn").onclick = () => act("leave");
 $("resetBtn").onclick = () => { if (confirm("Clear the whole board and today's numbers?")) act("reset"); };
 
-/* ---------- sheet for any person (manager / covering for someone) ---------- */
+// ---------- sheet for any person (manager / covering for someone) ----------
 $("line").onclick = (e) => {
   const k = e.target.closest(".more")?.dataset.k; if (!k) return;
   const p = state.people[k];
   $("sheetTitle").textContent = p.name;
   const opts = [
-    p.busy ? ["free", "Done with customer (no sale)"] : ["withCustomer", "With customer → bottom"],
-    ["missed", "Missed → bottom"],
+    ["makeUp", "⬆️ Make them UP (move to top)"],
     ["powerUp", "⚡ Power up (made a sale)"],
+    p.busy ? ["missed", "Missed (no sale) → bottom"] : ["withCustomer", "With customer → bottom"],
+    p.brk ? ["back", "Back from break → bottom"] : ["break", "Put on break"],
     ["moveUp", "Move up one spot"],
     ["moveDown", "Move down one spot"],
     ["leave", "Remove from board", "danger"],
@@ -335,8 +361,30 @@ function closeSheet() { $("sheet").classList.add("hidden"); }
 $("sheetClose").onclick = closeSheet;
 $("sheet").onclick = (e) => { if (e.target.id === "sheet") closeSheet(); };
 
-/* ---------- start ---------- */
-if (me) { api("GET").then((s) => { state = s; startBoard(); }).catch((e) => showLogin(e.status === 401 ? "Enter the store PIN" : "")); }
+// ---------- manager ----------
+function openPin() { $("mgrErr").textContent = ""; $("mgrPinIn").value = ""; $("pinSheet").classList.remove("hidden"); setTimeout(() => $("mgrPinIn").focus(), 50); }
+function closePin() { $("pinSheet").classList.add("hidden"); }
+$("mgrBtn").onclick = () => {
+  if (isMgr()) { mgrPin = ""; LS.del("upboard.mgr"); toast("Manager mode off"); if (!me) logout(); else render(); }
+  else openPin();
+};
+$("loginMgr").onclick = openPin;
+$("mgrCancel").onclick = closePin;
+$("mgrPinIn").onkeydown = (e) => { if (e.key === "Enter") $("mgrPinGo").click(); };
+$("mgrPinGo").onclick = async () => {
+  const tryPin = $("mgrPinIn").value.trim();
+  if (!tryPin) return;
+  const prev = mgrPin; mgrPin = tryPin;
+  try {
+    await api("POST", { action: "managerCheck" });
+    LS.set("upboard.mgr", mgrPin); closePin(); toast("Manager mode on");
+    if (!$("board").classList.contains("hidden")) render();
+    else { state = await api("GET"); startBoard(); }
+  } catch (e) { mgrPin = prev; $("mgrErr").textContent = e.message; }
+};
+
+// ---------- start ----------
+if (me || mgrPin) { api("GET").then((s) => { state = s; startBoard(); }).catch((e) => showLogin(e.status === 401 ? "Enter the store PIN" : "")); }
 else showLogin();
 </script>
 </body>
