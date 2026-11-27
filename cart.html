@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#c8102e" />
+<title>Cart - Up Board</title>
+<style>
+  :root { --red: #c8102e; --ink: #16181d; --mut: #6b7280; --line: #e5e7eb; --bg: #f4f5f7; --card: #fff; --green: #15803d; --amber: #b45309; --blue: #1d4ed8; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  button, input, select { font: inherit; }
+  button { cursor: pointer; border: 0; }
+  .hidden { display: none !important; }
+  header { background: var(--red); color: #fff; padding: calc(env(safe-area-inset-top) + 10px) 14px 10px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 5; }
+  header h1 { margin: 0; font-size: 19px; font-weight: 800; flex: 1; }
+  header a, header button { background: rgba(255,255,255,.18); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 13px; text-decoration: none; font-weight: 700; }
+  .tabs { display: flex; gap: 6px; max-width: 760px; margin: 12px auto 0; padding: 0 14px; }
+  .tab { flex: 1; padding: 10px; border-radius: 10px; background: #e5e7eb; font-weight: 700; color: var(--mut); }
+  .tab.on { background: var(--ink); color: #fff; }
+  main { max-width: 760px; margin: 0 auto; padding: 12px 14px 120px; }
+  .card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.04); }
+  .label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--mut); font-weight: 700; margin-bottom: 6px; }
+  input[type=text], input[type=search], input[type=password], input[type=number], select { width: 100%; padding: 12px; border: 2px solid var(--line); border-radius: 10px; font-size: 17px; outline: none; background: #fff; }
+  input:focus, select:focus { border-color: var(--red); }
+  .btn { padding: 10px 14px; border-radius: 10px; font-weight: 700; background: var(--bg); color: var(--ink); }
+  .btn.red { background: var(--red); color: #fff; }
+  .btn.dark { background: var(--ink); color: #fff; }
+  .btn.small { padding: 7px 10px; font-size: 14px; }
+  .btn[disabled] { opacity: .4; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .grow { flex: 1; min-width: 0; }
+  .mut { color: var(--mut); font-size: 13px; }
+  .res { border-top: 1px solid var(--line); padding: 10px 2px; display: flex; gap: 10px; align-items: center; }
+  .res:first-child { border-top: 0; }
+  .res .t { font-weight: 600; }
+  .sku { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--bg); padding: 1px 6px; border-radius: 6px; }
+  .price { font-weight: 800; white-space: nowrap; }
+  .was { color: var(--mut); text-decoration: line-through; font-size: 13px; white-space: nowrap; }
+  .line { border-top: 1px solid var(--line); padding: 12px 0; }
+  .line:first-child { border-top: 0; }
+  .line.child { padding-left: 18px; border-left: 3px solid var(--line); margin-left: 6px; }
+  .lt { font-weight: 700; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .qty { display: flex; align-items: center; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .qty button { width: 36px; height: 36px; background: var(--bg); font-size: 20px; }
+  .qty span { min-width: 34px; text-align: center; font-weight: 700; }
+  .unit { width: 120px !important; padding: 7px 10px !important; font-size: 15px !important; }
+  .math { margin-top: 8px; font-size: 14px; }
+  .math div { display: flex; justify-content: space-between; padding: 2px 0; }
+  .math .disc { color: var(--green); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; color: #14532d; font-weight: 800; padding: 3px 4px 3px 9px; border-radius: 99px; font-size: 13px; }
+  .chip button { background: rgba(0,0,0,.08); border-radius: 99px; width: 22px; height: 22px; font-size: 13px; }
+  .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
+  .totals .big { font-size: 22px; font-weight: 900; border-top: 2px solid var(--ink); margin-top: 6px; padding-top: 8px; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--ink); color: #fff; padding: 12px 16px calc(env(safe-area-inset-bottom) + 12px); display: flex; justify-content: space-between; align-items: center; z-index: 6; }
+  .bar b { font-size: 20px; }
+  .err { background: #fee2e2; color: #991b1b; padding: 8px 10px; border-radius: 8px; font-size: 14px; margin-top: 6px; }
+  .warn { background: #fef3c7; color: #78350f; padding: 8px 10px; border-radius: 8px; font-size: 14px; margin-top: 6px; }
+  .ok { background: #dcfce7; color: #14532d; padding: 8px 10px; border-radius: 8px; font-size: 14px; margin-top: 6px; }
+  .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 900; font-size: 20px; color: var(--red); }
+  .cs { border-top: 1px solid var(--line); padding: 12px 0; }
+  .cs:first-child { border-top: 0; }
+  .kv { font-size: 14px; margin-top: 4px; }
+  .kv b { color: var(--mut); font-weight: 700; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; z-index: 20; }
+  .modal .panel { background: #fff; width: 100%; max-width: 640px; max-height: 92vh; overflow: auto; border-radius: 18px 18px 0 0; padding: 18px 16px calc(env(safe-area-inset-bottom) + 18px); }
+  @media (min-width: 700px) { .modal { align-items: center; } .modal .panel { border-radius: 18px; } }
+  .band { border: 2px solid var(--line); border-radius: 10px; padding: 10px; margin-top: 8px; }
+  .band.in { border-color: var(--green); background: #f0fdf4; }
+  .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 80px); transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 30; }
+  @media print { header, .tabs, .bar, .noprint, .controls button, #searchCard, #catCard { display: none !important; } main { padding: 0; } .card { box-shadow: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/">← Up Board</a>
+  <h1>🛒 Cart</h1>
+  <button id="lockBtn">🔒 Lock</button>
+</header>
+
+<div id="gate" class="modal">
+  <div class="panel">
+    <h2 style="margin:0 0 4px">Store PIN</h2>
+    <p class="mut" style="margin:0 0 12px">The cart and discount codes are for Brick 4P staff only.</p>
+    <input id="pinIn" type="password" placeholder="Store PIN" autocomplete="off" autocapitalize="off" />
+    <button class="btn red" id="pinGo" style="width:100%;margin-top:10px;padding:14px">Unlock</button>
+    <div id="pinErr" class="err hidden"></div>
+  </div>
+</div>
+
+<div class="tabs noprint">
+  <button class="tab on" data-tab="cartTab">Cart</button>
+  <button class="tab" data-tab="sheetTab">Cheat sheet</button>
+</div>
+
+<main>
+  <section id="cartTab">
+    <div class="card" id="searchCard">
+      <div class="label">Add a product</div>
+      <input id="q" type="search" placeholder="SKU or name, e.g. HWQ800HB or queen mattress" autocomplete="off" autocapitalize="characters" />
+      <div id="results"></div>
+      <div class="row" style="margin-top:10px"><button class="btn small" id="customBtn">+ Item not on the website (delivery, etc.)</button></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><div class="label grow" style="margin:0">Cart</div><button class="btn small noprint" id="printBtn">Print</button><button class="btn small noprint" id="clearBtn">Clear cart</button></div>
+      <div id="lines"></div>
+    </div>
+
+    <div class="card totals" id="totals"></div>
+
+    <div class="card mut" id="catCard"></div>
+  </section>
+
+  <section id="sheetTab" class="hidden">
+    <div class="card">
+      <input id="cq" type="search" placeholder="Search codes or offers, e.g. soundbar, pillow, U60" autocomplete="off" />
+      <div class="mut" style="margin-top:8px">Find the code here, then go to the cart and tap <b>Discount code</b> on the item.</div>
+    </div>
+    <div class="card" id="sheet"></div>
+  </section>
+</main>
+
+<div class="bar noprint"><span>Total incl. 13% HST</span><b id="barTotal">$0.00</b></div>
+
+<!-- discount code -->
+<div id="codeModal" class="modal hidden">
+  <div class="panel">
+    <div class="row"><h3 class="grow" style="margin:0">Discount code</h3><button class="btn small" data-close>Close</button></div>
+    <div class="mut" id="codeFor" style="margin:6px 0 10px"></div>
+    <input id="codeIn" type="text" placeholder="Type the code, e.g. U60" autocomplete="off" autocapitalize="characters" />
+    <div id="codeInfo"></div>
+    <button class="btn red" id="codeApply" style="width:100%;margin-top:12px;padding:14px" disabled>Apply to this item</button>
+    <div class="label" style="margin-top:16px">Not sure of the code? Search the cheat sheet</div>
+    <input id="codeSearch" type="search" placeholder="e.g. pillow, soundbar, sofa" autocomplete="off" />
+    <div id="codeHits"></div>
+  </div>
+</div>
+
+<!-- warranty -->
+<div id="warModal" class="modal hidden">
+  <div class="panel">
+    <div class="row"><h3 class="grow" style="margin:0">Add warranty</h3><button class="btn small" data-close>Close</button></div>
+    <div class="mut" id="warFor" style="margin:6px 0 10px"></div>
+    <select id="warCat"></select>
+    <div id="warNote"></div>
+    <div id="warBands"></div>
+  </div>
+</div>
+
+<!-- custom item -->
+<div id="customModal" class="modal hidden">
+  <div class="panel">
+    <div class="row"><h3 class="grow" style="margin:0">Item not on the website</h3><button class="btn small" data-close>Close</button></div>
+    <div class="label" style="margin-top:12px">Name</div>
+    <input id="cuName" type="text" placeholder="e.g. Delivery, care kit UPHOLKIT" />
+    <div class="label" style="margin-top:10px">SKU (optional)</div>
+    <input id="cuSku" type="text" autocapitalize="characters" />
+    <div class="label" style="margin-top:10px">Price each ($)</div>
+    <input id="cuPrice" type="number" step="0.01" min="0" inputmode="decimal" />
+    <label class="row" style="margin-top:10px"><input id="cuTax" type="checkbox" checked style="width:22px;height:22px" /> Charge 13% HST</label>
+    <button class="btn red" id="cuAdd" style="width:100%;margin-top:12px;padding:14px">Add to cart</button>
+  </div>
+</div>
+
+<script src="/cart-engine.js"></script>
+<script>
+const E = window.CartEngine;
+const $ = (id) => document.getElementById(id);
+const LS = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
+             set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+             del: (k) => { try { localStorage.removeItem(k); } catch {} } };
+const money = (n) => (n < 0 ? "-" : "") + "$" + Math.abs(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+function toast(m) { const t = document.createElement("div"); t.className = "toast"; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
+
+let pin = LS.get("cart.pin");
+let CODES = [], BY = {}, WAR = [];
+let cart = (() => { try { return JSON.parse(LS.get("cart.v1")) || { lines: [], next: 1 }; } catch { return { lines: [], next: 1 }; } })();
+const save = () => LS.set("cart.v1", JSON.stringify(cart));
+
+async function api(a, opts) {
+  const o = opts || {};
+  const r = await fetch("/api/cart?a=" + a + (o.q != null ? "&q=" + encodeURIComponent(o.q) : ""), {
+    method: o.body ? "POST" : "GET",
+    headers: { "Content-Type": "application/json", "x-cart-pin": pin },
+    body: o.body ? JSON.stringify(o.body) : undefined,
+  });
+  const j = await r.json().catch(() => ({ error: "Server error" }));
+  if (!r.ok) { const e = new Error(j.error || "Error"); e.status = r.status; e.pin = j.pin; throw e; }
+  return j;
+}
+
+// ---------- PIN ----------
+async function unlock() {
+  try {
+    const [c, w] = await Promise.all([api("codes"), api("warranty")]);
+    CODES = c.codes; BY = Object.fromEntries(CODES.map((x) => [x.code, x]));
+    WAR = w.warranty.map((x) => ({ ...x, re: x.match ? new RegExp(x.match, "i") : null }));
+    $("gate").classList.add("hidden");
+    render(); renderSheet(); loadMeta();
+    return true;
+  } catch (e) {
+    $("gate").classList.remove("hidden");
+    if (e.status === 401) { if (pin) { $("pinErr").textContent = "Wrong store PIN"; $("pinErr").classList.remove("hidden"); } }
+    else { $("pinErr").textContent = e.message; $("pinErr").classList.remove("hidden"); }
+    return false;
+  }
+}
+$("pinGo").onclick = async () => { pin = $("pinIn").value.trim(); if (await unlock()) LS.set("cart.pin", pin); };
+$("pinIn").onkeydown = (e) => { if (e.key === "Enter") $("pinGo").click(); };
+$("lockBtn").onclick = () => { LS.del("cart.pin"); pin = ""; $("pinIn").value = ""; $("pinErr").classList.add("hidden"); $("gate").classList.remove("hidden"); };
+
+// ---------- tabs ----------
+document.querySelectorAll(".tab").forEach((t) => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x === t));
+  ["cartTab", "sheetTab"].forEach((id) => $(id).classList.toggle("hidden", id !== t.dataset.tab));
+});
+
+// ---------- product search ----------
+let sTimer = null, lastResults = [];
+$("q").oninput = () => { clearTimeout(sTimer); sTimer = setTimeout(doSearch, 250); };
+async function doSearch() {
+  const q = $("q").value.trim();
+  if (q.length < 2) { $("results").innerHTML = ""; return; }
+  try {
+    const r = await api("search", { q });
+    lastResults = r.results;
+    $("results").innerHTML = r.results.length ? r.results.map((p, i) => `
+      <div class="res"><div class="grow"><div class="t">${esc(p.title)}</div>
+        <div class="mut"><span class="sku">${esc(p.sku)}</span> ${esc(p.vendor)} · ${esc(p.type)}</div></div>
+        <div style="text-align:right"><div class="price">${money(p.price)}</div>${p.regular ? `<div class="was">${money(p.regular)}</div>` : ""}</div>
+        <button class="btn red small" data-add="${i}">Add</button></div>`).join("")
+      : `<div class="mut" style="padding:10px 0">${r.count ? "No products found." : "The product list hasn't been copied from thebrick.com yet - see the bottom of this page."}</div>`;
+  } catch (e) { $("results").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+$("results").onclick = (e) => {
+  const i = e.target.closest("[data-add]")?.dataset.add; if (i == null) return;
+  const p = lastResults[+i];
+  cart.lines.push({ id: cart.next++, kind: "product", sku: p.sku, title: p.title, vendor: p.vendor, type: p.type, unitPrice: p.price, webPrice: p.price, regUnit: p.regular || null, qty: 1, codes: [], taxable: true, handle: p.handle });
+  save(); render(); toast("Added " + p.sku);
+  $("q").value = ""; $("results").innerHTML = "";
+};
+
+// ---------- custom item ----------
+$("customBtn").onclick = () => { ["cuName", "cuSku", "cuPrice"].forEach((id) => $(id).value = ""); $("cuTax").checked = true; open("customModal"); };
+$("cuAdd").onclick = () => {
+  const name = $("cuName").value.trim(); const price = parseFloat($("cuPrice").value);
+  if (!name || !(price >= 0)) { toast("Enter a name and a price"); return; }
+  cart.lines.push({ id: cart.next++, kind: "custom", sku: $("cuSku").value.trim().toUpperCase(), title: name, unitPrice: Math.round(price * 100) / 100, qty: 1, codes: [], taxable: $("cuTax").checked });
+  save(); render(); close("customModal");
+};
+
+// ---------- cart ----------
+function render() {
+  const t = E.cartCalc(cart.lines, BY);
+  $("lines").innerHTML = cart.lines.length ? cart.lines.map((l, i) => {
+    const c = t.lines[i];
+    const parent = l.parentId ? cart.lines.find((x) => x.id === l.parentId) : null;
+    return `<div class="line ${l.parentId ? "child" : ""}">
+      <div class="row"><div class="grow"><div class="lt">${esc(l.title)}</div>
+        <div class="mut">${l.sku ? `<span class="sku">${esc(l.sku)}</span> ` : ""}${l.kind === "warranty" ? "Warranty" + (parent ? " for " + esc(parent.sku || parent.title) : "") : esc(l.vendor || (l.kind === "custom" ? "Custom item" : ""))}${l.taxable === false ? " · no HST" : ""}</div></div>
+        <div class="price">${money(c.total)}</div></div>
+      <div class="controls">
+        <div class="qty"><button data-act="minus" data-id="${l.id}">−</button><span>${c.qty}</span><button data-act="plus" data-id="${l.id}">+</button></div>
+        <span class="mut">@</span><input class="unit" type="number" step="0.01" min="0" inputmode="decimal" value="${l.unitPrice}" data-price="${l.id}" />
+        ${l.kind !== "warranty" ? `<button class="btn small dark" data-act="code" data-id="${l.id}">Discount code</button>` : ""}
+        ${l.kind === "product" ? `<button class="btn small" data-act="war" data-id="${l.id}">+ Warranty</button>` : ""}
+        <button class="btn small" data-act="del" data-id="${l.id}">Remove</button>
+      </div>
+      ${l.webPrice != null && +l.unitPrice !== +l.webPrice ? `<div class="warn">Price changed by hand - website price is ${money(l.webPrice)}</div>` : ""}
+      <div class="math">
+        <div><span>${c.qty} × ${money(c.unit)}${c.reg > c.base ? ` <span class="was">reg. ${money(c.reg / c.qty)}</span>` : ""}</span><span>${money(c.base)}</span></div>
+        ${c.steps.map((s) => `<div class="disc"><span><span class="chip">${esc(s.code)} <button data-act="uncode" data-id="${l.id}" data-code="${esc(s.code)}" aria-label="Remove ${esc(s.code)}">×</button></span> ${esc(BY[s.code] ? E.describe(BY[s.code]) : "")}${s.note ? " · " + esc(s.note) : ""}</span><span>−${money(s.amount)}</span></div>`).join("")}
+      </div>
+    </div>`;
+  }).join("") : `<div class="mut" style="padding:8px 0">Search for a SKU above to start a cart.</div>`;
+
+  $("totals").innerHTML = `
+    <div><span>Subtotal (before discounts)</span><span>${money(t.subtotal)}</span></div>
+    <div style="color:var(--green)"><span>Discount codes</span><span>−${money(t.discounts)}</span></div>
+    <div><span><b>Subtotal</b></span><span><b>${money(t.net)}</b></span></div>
+    <div><span>HST 13%${t.taxable !== t.net ? ` <span class="mut">(on ${money(t.taxable)})</span>` : ""}</span><span>${money(t.tax)}</span></div>
+    <div class="big"><span>Total</span><span>${money(t.total)}</span></div>
+    <div class="mut" style="margin-top:6px">Estimate from thebrick.com prices for store 4P (zone ZBC). The register is the final price.</div>`;
+  $("barTotal").textContent = money(t.total);
+}
+
+$("lines").onclick = (e) => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const id = +b.dataset.id, l = cart.lines.find((x) => x.id === id); if (!l) return;
+  const act = b.dataset.act;
+  if (act === "plus") { l.qty = (l.qty || 1) + 1; cart.lines.filter((x) => x.parentId === id).forEach((w) => w.qty = l.qty); }
+  if (act === "minus") { l.qty = Math.max(1, (l.qty || 1) - 1); cart.lines.filter((x) => x.parentId === id).forEach((w) => w.qty = l.qty); }
+  if (act === "del") cart.lines = cart.lines.filter((x) => x.id !== id && x.parentId !== id);
+  if (act === "uncode") l.codes = l.codes.filter((c) => c !== b.dataset.code);
+  if (act === "code") return openCode(l);
+  if (act === "war") return openWar(l);
+  save(); render();
+};
+$("lines").onchange = (e) => {
+  const id = e.target.dataset.price; if (!id) return;
+  const l = cart.lines.find((x) => x.id === +id); const v = parseFloat(e.target.value);
+  if (l && v >= 0) { l.unitPrice = Math.round(v * 100) / 100; save(); render(); }
+};
+$("clearBtn").onclick = () => { if (cart.lines.length && confirm("Clear the whole cart?")) { cart = { lines: [], next: 1 }; save(); render(); } };
+$("printBtn").onclick = () => window.print();
+
+// ---------- discount code ----------
+let codeLine = null;
+function openCode(l) {
+  codeLine = l;
+  $("codeFor").innerHTML = `For: <b>${esc(l.title)}</b> ${l.sku ? `<span class="sku">${esc(l.sku)}</span>` : ""}`;
+  $("codeIn").value = ""; $("codeSearch").value = ""; $("codeHits").innerHTML = ""; showCode();
+  open("codeModal"); setTimeout(() => $("codeIn").focus(), 60);
+}
+function ruleCard(r) {
+  const dates = r.from || r.to ? (r.from === r.to ? r.from : (r.from || "…") + " to " + (r.to || "…")) : "";
+  return `<div><span class="code">${esc(r.code)}</span> <span class="mut">${esc(r.sheet)}${dates ? " · " + esc(dates) : ""}</span></div>
+    <div style="font-weight:700;margin-top:4px">${esc(r.title)}</div>
+    <div class="kv"><b>Math:</b> ${esc(E.describe(r))}</div>
+    ${r.appliesTo ? `<div class="kv"><b>Apply to:</b> ${esc(r.appliesTo)}</div>` : ""}
+    ${r.skus ? `<div class="kv"><b>Only these SKUs:</b> ${esc(r.skus.join(", "))}</div>` : ""}
+    ${r.requires ? `<div class="kv"><b>Requires:</b> ${esc(r.requires)}</div>` : ""}
+    ${r.excludes ? `<div class="kv"><b>Excludes:</b> ${esc(r.excludes)}</div>` : ""}
+    ${r.notes ? `<div class="kv"><b>Notes:</b> ${esc(r.notes)}</div>` : ""}`;
+}
+function showCode() {
+  const code = $("codeIn").value.trim().toUpperCase();
+  const r = BY[code];
+  if (!code) { $("codeInfo").innerHTML = ""; $("codeApply").disabled = true; return; }
+  if (!r) { $("codeInfo").innerHTML = `<div class="err">${esc(code)} is not on the cheat sheets.</div>`; $("codeApply").disabled = true; return; }
+  const chk = E.checkCode(r, codeLine, today());
+  let preview = "";
+  if (chk.ok) {
+    const before = E.lineCalc(codeLine, BY).total;
+    const after = E.lineCalc({ ...codeLine, codes: [...(codeLine.codes || []), code] }, BY).total;
+    preview = `<div class="ok">This item: ${money(before)} → <b>${money(after)}</b> (−${money(Math.round((before - after) * 100) / 100)})</div>`;
+  }
+  $("codeInfo").innerHTML = `<div class="card" style="margin:10px 0 0;box-shadow:none;border:2px solid var(--line)">${ruleCard(r)}</div>
+    ${chk.errors.map((x) => `<div class="err">${esc(x)}</div>`).join("")}
+    ${chk.warnings.map((x) => `<div class="warn">${esc(x)}</div>`).join("")}${preview}`;
+  $("codeApply").disabled = !chk.ok;
+}
+$("codeIn").oninput = showCode;
+$("codeIn").onkeydown = (e) => { if (e.key === "Enter" && !$("codeApply").disabled) $("codeApply").click(); };
+$("codeApply").onclick = () => {
+  const code = $("codeIn").value.trim().toUpperCase();
+  codeLine.codes = [...(codeLine.codes || []), code];
+  save(); render(); close("codeModal"); toast(code + " applied");
+};
+const findCodes = (q) => {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  return CODES.filter((r) => { const h = (r.code + " " + r.title + " " + (r.appliesTo || "") + " " + (r.notes || "") + " " + (r.skus || []).join(" ") + " " + (r.softSkus || []).join(" ") + " " + r.dept).toLowerCase(); return words.every((w) => h.includes(w)); });
+};
+$("codeSearch").oninput = () => {
+  const q = $("codeSearch").value.trim();
+  $("codeHits").innerHTML = q.length < 2 ? "" : findCodes(q).slice(0, 15).map((r) =>
+    `<div class="cs"><div class="row"><div class="grow"><span class="code" style="font-size:16px">${esc(r.code)}</span> ${esc(r.title)}</div>
+     ${r.type !== "info" ? `<button class="btn small dark" data-pick="${esc(r.code)}">Use</button>` : ""}</div></div>`).join("") || `<div class="mut" style="padding:8px 0">Nothing found.</div>`;
+};
+$("codeHits").onclick = (e) => { const c = e.target.closest("[data-pick]")?.dataset.pick; if (c) { $("codeIn").value = c; showCode(); $("codeModal").querySelector(".panel").scrollTop = 0; } };
+
+// ---------- cheat sheet ----------
+function renderSheet() {
+  const q = $("cq").value.trim();
+  const list = q ? findCodes(q) : CODES;
+  $("sheet").innerHTML = list.map((r) => `<div class="cs">${ruleCard(r)}${r.verify ? `<div class="warn">Needs checking: ${esc(r.verify)}</div>` : ""}</div>`).join("") || `<div class="mut">Nothing found.</div>`;
+}
+$("cq").oninput = renderSheet;
+
+// ---------- warranty ----------
+let warLine = null;
+function openWar(l) {
+  warLine = l;
+  const net = E.lineCalc(l, BY);
+  const each = Math.round((net.total / net.qty) * 100) / 100;
+  $("warFor").innerHTML = `For: <b>${esc(l.title)}</b> · selling price ${money(each)} each${net.discount ? " (after codes)" : ""}`;
+  const guess = WAR.find((c) => c.re && c.re.test(l.title + " " + (l.type || ""))) || WAR[0];
+  $("warCat").innerHTML = WAR.map((c) => `<option value="${c.id}" ${c === guess ? "selected" : ""}>${esc(c.name)}</option>`).join("");
+  showBands(); open("warModal");
+}
+function showBands() {
+  const cat = WAR.find((c) => c.id === $("warCat").value);
+  const net = E.lineCalc(warLine, BY);
+  const each = Math.round((net.total / net.qty) * 100) / 100;
+  $("warNote").innerHTML = cat.note ? `<div class="warn">${esc(cat.note)}</div>` : "";
+  const opts = E.warrantyOptions(cat, each);
+  const sorted = [...opts.filter((o) => o.inBand), ...opts.filter((o) => !o.inBand)];
+  $("warBands").innerHTML = sorted.map((o) => `<div class="band ${o.inBand ? "in" : ""}">
+      <div class="row"><b class="grow">${esc(o.label)}</b>${o.inBand ? `<span class="mut" style="color:var(--green)">matches this item</span>` : ""}</div>
+      <div class="controls">${o.plans.map((p) => `<button class="btn small ${o.inBand ? "red" : ""}" data-war='${esc(JSON.stringify({ cat: cat.name, ...p }))}'>${esc(p.name)} · ${money(p.price)} <span style="opacity:.75">${esc(p.code)}</span></button>`).join("") || `<span class="mut">No plan</span>`}</div>
+    </div>`).join("");
+}
+$("warCat").onchange = showBands;
+$("warBands").onclick = (e) => {
+  const b = e.target.closest("[data-war]"); if (!b) return;
+  const p = JSON.parse(b.dataset.war);
+  cart.lines = cart.lines.filter((x) => !(x.parentId === warLine.id && x.kind === "warranty"));
+  const idx = cart.lines.indexOf(warLine);
+  cart.lines.splice(idx + 1, 0, { id: cart.next++, kind: "warranty", parentId: warLine.id, sku: p.code, title: p.cat + " - " + p.name, unitPrice: p.price, qty: warLine.qty || 1, codes: [], taxable: true });
+  save(); render(); close("warModal"); toast("Warranty added");
+};
+
+// ---------- catalog ----------
+async function loadMeta() {
+  try {
+    const m = await api("meta");
+    const c = m.catalog;
+    $("catCard").innerHTML = `<div class="row"><div class="grow">Products from thebrick.com for <b>${esc(m.store)}</b> (zone ${esc(m.zone)}): <b>${c ? c.count.toLocaleString() : 0}</b>${c ? " · updated " + new Date(c.updated).toLocaleString("en-CA", { timeZone: "America/Toronto" }) : ""}</div>
+      <button class="btn small" id="syncBtn">Update product list</button></div><div id="syncMsg"></div>`;
+    $("syncBtn").onclick = runSync;
+  } catch (e) { $("catCard").textContent = e.message; }
+}
+async function runSync() {
+  if (!confirm("Copy the latest product list and prices from thebrick.com? It takes a few minutes. The cart keeps working meanwhile.")) return;
+  $("syncBtn").disabled = true;
+  try {
+    let step = await api("sync", { body: { phase: "start" } });
+    while (step.phase !== "done") {
+      $("syncMsg").innerHTML = `<div class="ok">Copying… ${step.count ? step.count.toLocaleString() + " products" : ""}${step.progress ? " (" + step.progress + "%)" : ""}</div>`;
+      step = await api("sync", { body: step });
+    }
+    $("syncMsg").innerHTML = `<div class="ok">Done - ${step.count.toLocaleString()} products.</div>`;
+    loadMeta();
+  } catch (e) { $("syncMsg").innerHTML = `<div class="err">${esc(e.message)}</div>`; $("syncBtn").disabled = false; }
+}
+
+// ---------- modals ----------
+function open(id) { $(id).classList.remove("hidden"); }
+function close(id) { $(id).classList.add("hidden"); }
+document.querySelectorAll("[data-close]").forEach((b) => b.onclick = () => b.closest(".modal").classList.add("hidden"));
+document.querySelectorAll(".modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m && m.id !== "gate") m.classList.add("hidden"); }));
+
+render();
+if (pin) unlock(); else $("gate").classList.remove("hidden");
+</script>
+</body>
+</html>

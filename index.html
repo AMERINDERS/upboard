@@ -22,6 +22,7 @@
   header h1 { margin: 0; font-size: 20px; letter-spacing: .5px; font-weight: 800; }
   header .me { font-size: 14px; opacity: .95; display: flex; gap: 10px; align-items: center; }
   header .me button { background: rgba(255,255,255,.18); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+  .cartlink { background: rgba(255,255,255,.18); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 13px; text-decoration: none; font-weight: 700; }
   .mgr { background: #fff !important; color: var(--red) !important; font-weight: 800; }
   .mgr.on { background: var(--gold) !important; color: #422006 !important; }
   #loginMgr { position: fixed; top: calc(env(safe-area-inset-top) + 14px); right: 16px; background: rgba(255,255,255,.18); color: #fff; padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 14px; }
@@ -127,7 +128,7 @@
 <section id="board" class="hidden">
   <header>
     <h1>UP BOARD</h1>
-    <div class="me"><span class="dot" id="live"></span><span id="meName"></span><button id="logoutBtn">Log out</button><button id="mgrBtn" class="mgr">🔑 Manager</button></div>
+    <div class="me"><a href="/cart.html" class="cartlink">🛒 Cart</a><span class="dot" id="live"></span><span id="meName"></span><button id="logoutBtn">Log out</button><button id="mgrBtn" class="mgr">🔑 Manager</button></div>
   </header>
   <main>
     <div class="warn hidden" id="noStore">⚠️ Shared storage isn't connected yet, so phones won't stay in sync. In Vercel, connect an Upstash Redis database to this project and redeploy.</div>

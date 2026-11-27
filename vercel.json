@@ -1,0 +1,5 @@
+{
+  "functions": {
+    "api/cart.js": { "maxDuration": 60 }
+  }
+}
