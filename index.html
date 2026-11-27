@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#c8102e" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Up Board</title>
+<style>
+  :root {
+    --red: #c8102e; --red-d: #9e0c24; --ink: #16181d; --mut: #6b7280; --line: #e5e7eb;
+    --bg: #f4f5f7; --card: #fff; --blue: #1d4ed8; --amber: #d97706; --green: #15803d; --gold: #facc15;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  button { font: inherit; cursor: pointer; border: 0; }
+  .hidden { display: none !important; }
+
+  header { background: var(--red); color: #fff; padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 5; }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: .5px; font-weight: 800; }
+  header .me { font-size: 14px; opacity: .95; display: flex; gap: 10px; align-items: center; }
+  header .me button { background: rgba(255,255,255,.18); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; display: inline-block; }
+  .dot.off { background: #fbbf24; }
+
+  main { max-width: 640px; margin: 0 auto; padding: 14px 14px 40px; }
+  .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.04); }
+  .label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--mut); font-weight: 700; margin-bottom: 6px; }
+
+  /* login */
+  #login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+    background: linear-gradient(160deg, var(--red) 0%, var(--red-d) 100%); }
+  #login .card { width: 100%; max-width: 380px; padding: 28px 22px; }
+  #login h1 { margin: 0 0 4px; font-size: 30px; font-weight: 900; color: var(--red); }
+  #login p { margin: 0 0 20px; color: var(--mut); }
+  input { width: 100%; font: inherit; font-size: 18px; padding: 14px; border: 2px solid var(--line); border-radius: 12px; margin-bottom: 12px; outline: none; }
+  input:focus { border-color: var(--red); }
+  .big { width: 100%; padding: 16px; border-radius: 12px; font-size: 18px; font-weight: 800; color: #fff; background: var(--red); }
+  .big:active { transform: scale(.98); }
+  .err { color: var(--red); font-size: 14px; min-height: 18px; margin-top: 8px; }
+
+  /* up next */
+  #upnext { text-align: center; padding: 18px 16px; }
+  #upnext .name { font-size: 32px; font-weight: 900; margin: 2px 0; }
+  #upnext.mine { background: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
+  #upnext.mine .label { color: #713f12; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(250,204,21,.35); } }
+  #upnext .sub { color: var(--mut); font-size: 14px; }
+  #upnext.mine .sub { color: #713f12; }
+
+  /* my controls */
+  .status { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
+  .status b { font-size: 22px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .act { padding: 18px 10px; border-radius: 14px; color: #fff; font-weight: 800; font-size: 17px; line-height: 1.15; }
+  .act small { display: block; font-weight: 500; font-size: 12px; opacity: .9; margin-top: 3px; }
+  .act:active { transform: scale(.97); }
+  .act.with { background: var(--blue); }
+  .act.miss { background: #4b5563; }
+  .act.power { background: linear-gradient(135deg, #f59e0b, var(--red)); grid-column: span 2; font-size: 21px; padding: 20px; }
+  .act.free { background: var(--green); }
+  .act.join { background: var(--red); grid-column: span 2; }
+  .act[disabled] { opacity: .45; }
+  .linkbtn { background: none; color: var(--mut); text-decoration: underline; font-size: 14px; padding: 10px 0 0; }
+
+  /* line */
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--line); }
+  .row:first-of-type { border-top: 0; }
+  .pos { width: 34px; height: 34px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: 800; flex: none; }
+  .row.next .pos { background: var(--red); color: #fff; }
+  .row.me { background: #fff7ed; border-radius: 10px; }
+  .row.busy { opacity: .6; }
+  .who { flex: 1; min-width: 0; }
+  .who .n { font-weight: 700; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stats { font-size: 12px; color: var(--mut); }
+  .tag { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 99px; margin-left: 6px; vertical-align: 2px; }
+  .tag.b { background: #dbeafe; color: var(--blue); }
+  .tag.n { background: var(--red); color: #fff; }
+  .more { background: var(--bg); width: 38px; height: 38px; border-radius: 10px; font-size: 20px; color: var(--mut); flex: none; }
+  .empty { color: var(--mut); text-align: center; padding: 18px 0; }
+
+  /* leaderboard + log */
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 8px 4px; border-top: 1px solid var(--line); }
+  th { font-size: 12px; color: var(--mut); text-transform: uppercase; border-top: 0; }
+  td.num, th.num { text-align: center; width: 54px; }
+  .log div { font-size: 14px; padding: 6px 0; border-top: 1px solid var(--line); }
+  .log time { color: var(--mut); font-size: 12px; margin-right: 8px; font-variant-numeric: tabular-nums; }
+  details summary { cursor: pointer; font-weight: 700; list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after { content: " ▾"; color: var(--mut); }
+
+  .warn { background: #fef3c7; color: #78350f; padding: 12px 14px; border-radius: 12px; font-size: 14px; margin-bottom: 14px; }
+
+  /* sheet */
+  #sheet { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; z-index: 20; }
+  #sheet .panel { background: #fff; width: 100%; max-width: 640px; margin: 0 auto; border-radius: 18px 18px 0 0;
+    padding: 18px 16px calc(env(safe-area-inset-bottom) + 18px); }
+  #sheet h3 { margin: 0 0 12px; font-size: 20px; }
+  .sbtn { display: block; width: 100%; text-align: left; padding: 14px; border-radius: 12px; background: var(--bg); margin-bottom: 8px; font-size: 16px; font-weight: 600; }
+  .sbtn.danger { color: var(--red); }
+  .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 20px); transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 30; max-width: 90%; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login">
+  <div class="card">
+    <h1>Up Board</h1>
+    <p>Enter your name to get on the floor.</p>
+    <input id="nameIn" placeholder="Your name" autocomplete="name" autocapitalize="words" maxlength="30" />
+    <input id="pinIn" class="hidden" placeholder="Store PIN" inputmode="numeric" type="password" />
+    <button class="big" id="loginBtn">Log in &amp; join the line</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</section>
+
+<!-- BOARD -->
+<section id="board" class="hidden">
+  <header>
+    <h1>UP BOARD</h1>
+    <div class="me"><span class="dot" id="live"></span><span id="meName"></span><button id="logoutBtn">Log out</button></div>
+  </header>
+  <main>
+    <div class="warn hidden" id="noStore">⚠️ Shared storage isn't connected yet, so phones won't stay in sync. In Vercel, connect an Upstash Redis database to this project and redeploy.</div>
+
+    <div class="card" id="upnext">
+      <div class="label">Up next</div>
+      <div class="name" id="upName">—</div>
+      <div class="sub" id="upSub"></div>
+    </div>
+
+    <div class="card" id="mine">
+      <div class="status">
+        <div><div class="label">You</div><b id="myStatus">—</b></div>
+        <div class="stats" id="myStats"></div>
+      </div>
+      <div class="grid" id="myBtns"></div>
+      <button class="linkbtn" id="leaveBtn">Leave the board (lunch / going home)</button>
+    </div>
+
+    <div class="card">
+      <div class="label">The line</div>
+      <div id="line"></div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Today's numbers</summary>
+        <table id="leader"></table>
+      </details>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Activity</summary>
+        <div class="log" id="log"></div>
+      </details>
+    </div>
+
+    <div style="text-align:center"><button class="linkbtn" id="resetBtn">Reset board for a new day</button></div>
+  </main>
+</section>
+
+<!-- ACTION SHEET -->
+<div id="sheet" class="hidden">
+  <div class="panel">
+    <h3 id="sheetTitle"></h3>
+    <div id="sheetBtns"></div>
+    <button class="sbtn" id="sheetClose" style="text-align:center">Cancel</button>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const LS = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
+             set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+             del: (k) => { try { localStorage.removeItem(k); } catch {} } };
+
+let me = LS.get("upboard.name");
+let pin = LS.get("upboard.pin");
+let state = null, wasMyTurn = false, polling = null, busy = false;
+
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const key = (n) => n.toLowerCase();
+
+function toast(msg) {
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+}
+
+async function api(method, body) {
+  const r = await fetch("/api/board", {
+    method, headers: { "Content-Type": "application/json", "x-store-pin": pin },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const j = await r.json().catch(() => ({ error: "Server error" }));
+  if (!r.ok) { const e = new Error(j.error || "Error"); e.status = r.status; e.pinRequired = j.pinRequired; throw e; }
+  return j;
+}
+
+async function act(action, name = me) {
+  if (busy) return; busy = true;
+  try { state = await api("POST", { action, name, by: me }); render(); }
+  catch (e) { toast(e.message); if (e.status === 401) logout(); }
+  finally { busy = false; }
+}
+
+/* ---------- login ---------- */
+async function showLogin(msg) {
+  $("board").classList.add("hidden"); $("login").classList.remove("hidden");
+  $("nameIn").value = me || ""; $("loginErr").textContent = msg || "";
+  try { await api("GET"); } catch (e) { if (e.pinRequired) $("pinIn").classList.remove("hidden"); }
+}
+
+$("loginBtn").onclick = async () => {
+  const n = $("nameIn").value.replace(/\s+/g, " ").trim();
+  if (!n) { $("loginErr").textContent = "Enter your name"; return; }
+  if (!$("pinIn").classList.contains("hidden")) pin = $("pinIn").value.trim();
+  try {
+    state = await api("GET");
+    const existing = state.people[key(n)];
+    me = existing ? existing.name : n;
+    LS.set("upboard.name", me); LS.set("upboard.pin", pin);
+    if (!state.line.includes(key(me))) state = await api("POST", { action: "join", name: me, by: me });
+    startBoard();
+  } catch (e) {
+    if (e.pinRequired) { $("pinIn").classList.remove("hidden"); $("loginErr").textContent = pin ? "Wrong store PIN" : "Enter the store PIN"; }
+    else $("loginErr").textContent = e.message;
+  }
+};
+$("nameIn").onkeydown = $("pinIn").onkeydown = (e) => { if (e.key === "Enter") $("loginBtn").click(); };
+
+function logout() {
+  LS.del("upboard.name"); me = ""; clearInterval(polling); showLogin();
+}
+$("logoutBtn").onclick = logout;
+
+/* ---------- board ---------- */
+function startBoard() {
+  $("login").classList.add("hidden"); $("board").classList.remove("hidden");
+  $("meName").textContent = me; render(); poll();
+  clearInterval(polling); polling = setInterval(() => { if (!document.hidden) poll(); }, 3000);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && me) poll(); });
+
+async function poll() {
+  try { const s = await api("GET"); if (!busy) { state = s; render(); } $("live").classList.remove("off"); }
+  catch (e) { $("live").classList.add("off"); if (e.status === 401) logout(); }
+}
+
+function mins(t) { if (!t) return ""; const m = Math.floor((Date.now() - t) / 60000); return m < 1 ? "just now" : m + " min"; }
+function nextUp() { return state.line.find((k) => !state.people[k]?.busy); }
+
+function render() {
+  if (!state) return;
+  $("noStore").classList.toggle("hidden", !!state.sharedStorage);
+  const P = state.people, mk = key(me), mp = P[mk] || { name: me, ups: 0, sales: 0, missed: 0 };
+  const inLine = state.line.includes(mk), pos = state.line.indexOf(mk) + 1;
+  const nk = nextUp(), myTurn = nk === mk;
+
+  // up next
+  const up = $("upnext");
+  up.classList.toggle("mine", myTurn);
+  $("upName").textContent = myTurn ? "YOU'RE UP!" : nk ? P[nk].name : "Nobody available";
+  const after = state.line.filter((k) => !P[k].busy && k !== nk).slice(0, 2).map((k) => P[k].name);
+  $("upSub").textContent = after.length ? "Then: " + after.join(", ") : "";
+  if (myTurn && !wasMyTurn) { try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch {} }
+  wasMyTurn = myTurn;
+  document.title = myTurn ? "🔴 YOU'RE UP — Up Board" : "Up Board";
+
+  // my controls
+  $("myStatus").textContent = !inLine ? "Not on the board" : mp.busy ? `With customer · #${pos}` : `#${pos} in line`;
+  $("myStats").textContent = `${mp.ups} ups · ${mp.sales} sales · ${mp.missed} missed`;
+  let b = "";
+  if (!inLine) b = `<button class="act join" data-a="join">Join the line</button>`;
+  else {
+    b += mp.busy
+      ? `<button class="act free" data-a="free">Done<small>no sale</small></button>`
+      : `<button class="act with" data-a="withCustomer">With Customer<small>go to bottom</small></button>`;
+    b += `<button class="act miss" data-a="missed">Missed<small>go to bottom</small></button>`;
+    b += `<button class="act power" data-a="powerUp">⚡ POWER UP<small>made a sale</small></button>`;
+  }
+  $("myBtns").innerHTML = b;
+  $("leaveBtn").classList.toggle("hidden", !inLine);
+
+  // line
+  $("line").innerHTML = state.line.length ? state.line.map((k, i) => {
+    const p = P[k]; const cls = ["row", k === nk ? "next" : "", k === mk ? "me" : "", p.busy ? "busy" : ""].join(" ");
+    return `<div class="${cls}">
+      <div class="pos">${i + 1}</div>
+      <div class="who"><div class="n">${esc(p.name)}${k === mk ? " (you)" : ""}${k === nk ? '<span class="tag n">UP</span>' : ""}${p.busy ? `<span class="tag b">WITH CUSTOMER ${mins(p.since)}</span>` : ""}</div>
+        <div class="stats">${p.ups} ups · ${p.sales} sales · ${p.missed} missed</div></div>
+      <button class="more" data-k="${esc(k)}" aria-label="Options for ${esc(p.name)}">⋯</button>
+    </div>`;
+  }).join("") : `<div class="empty">No one on the board yet.</div>`;
+
+  // leaderboard
+  const all = Object.entries(P).sort((a, b) => b[1].sales - a[1].sales || b[1].ups - a[1].ups);
+  $("leader").innerHTML = `<tr><th>Name</th><th class="num">Ups</th><th class="num">Sales</th><th class="num">Missed</th><th class="num">Close %</th></tr>` +
+    all.map(([, p]) => `<tr><td>${esc(p.name)}</td><td class="num">${p.ups}</td><td class="num">${p.sales}</td><td class="num">${p.missed}</td><td class="num">${p.ups ? Math.round(p.sales / p.ups * 100) + "%" : "–"}</td></tr>`).join("");
+
+  // log
+  $("log").innerHTML = state.log.map((l) =>
+    `<div><time>${new Date(l.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time>${esc(l.text)}</div>`).join("") || `<div class="empty">Nothing yet.</div>`;
+}
+
+$("myBtns").onclick = (e) => { const a = e.target.closest("[data-a]")?.dataset.a; if (a) act(a); };
+$("leaveBtn").onclick = () => act("leave");
+$("resetBtn").onclick = () => { if (confirm("Clear the whole board and today's numbers?")) act("reset"); };
+
+/* ---------- sheet for any person (manager / covering for someone) ---------- */
+$("line").onclick = (e) => {
+  const k = e.target.closest(".more")?.dataset.k; if (!k) return;
+  const p = state.people[k];
+  $("sheetTitle").textContent = p.name;
+  const opts = [
+    p.busy ? ["free", "Done with customer (no sale)"] : ["withCustomer", "With customer → bottom"],
+    ["missed", "Missed → bottom"],
+    ["powerUp", "⚡ Power up (made a sale)"],
+    ["moveUp", "Move up one spot"],
+    ["moveDown", "Move down one spot"],
+    ["leave", "Remove from board", "danger"],
+  ];
+  $("sheetBtns").innerHTML = opts.map(([a, t, c]) => `<button class="sbtn ${c || ""}" data-a="${a}">${t}</button>`).join("");
+  $("sheetBtns").onclick = (ev) => { const a = ev.target.closest("[data-a]")?.dataset.a; if (a) { closeSheet(); act(a, p.name); } };
+  $("sheet").classList.remove("hidden");
+};
+function closeSheet() { $("sheet").classList.add("hidden"); }
+$("sheetClose").onclick = closeSheet;
+$("sheet").onclick = (e) => { if (e.target.id === "sheet") closeSheet(); };
+
+/* ---------- start ---------- */
+if (me) { api("GET").then((s) => { state = s; startBoard(); }).catch((e) => showLogin(e.status === 401 ? "Enter the store PIN" : "")); }
+else showLogin();
+</script>
+</body>
+</html>
