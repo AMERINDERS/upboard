@@ -1,5 +1,8 @@
 {
   "functions": {
     "api/cart.js": { "maxDuration": 60 }
-  }
+  },
+  "rewrites": [
+    { "source": "/", "has": [{ "type": "host", "value": "cart.amerinder.com" }], "destination": "/cart.html" }
+  ]
 }

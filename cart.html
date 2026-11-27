@@ -75,8 +75,9 @@
 <body>
 
 <header>
-  <a href="/">← Up Board</a>
+  <a href="https://upboard.amerinder.com/">← Up Board</a>
   <h1>🛒 Cart</h1>
+  <button id="whoBtn">👤 …</button>
   <button id="lockBtn">🔒 Lock</button>
 </header>
 
@@ -87,6 +88,16 @@
     <input id="pinIn" type="password" placeholder="Store PIN" autocomplete="off" autocapitalize="off" />
     <button class="btn red" id="pinGo" style="width:100%;margin-top:10px;padding:14px">Unlock</button>
     <div id="pinErr" class="err hidden"></div>
+  </div>
+</div>
+
+<div id="whoModal" class="modal hidden">
+  <div class="panel">
+    <h2 style="margin:0 0 4px">Whose cart?</h2>
+    <p class="mut" style="margin:0 0 12px">Each salesperson has their own cart. Use the same name as on the up board.</p>
+    <input id="whoIn" type="text" placeholder="Your name" autocomplete="off" autocapitalize="words" maxlength="30" />
+    <button class="btn red" id="whoGo" style="width:100%;margin-top:10px;padding:14px">Open my cart</button>
+    <div id="whoErr" class="err hidden"></div>
   </div>
 </div>
 
@@ -105,7 +116,7 @@
     </div>
 
     <div class="card">
-      <div class="row"><div class="label grow" style="margin:0">Cart</div><button class="btn small noprint" id="printBtn">Print</button><button class="btn small noprint" id="clearBtn">Clear cart</button></div>
+      <div class="row"><div class="label grow" style="margin:0" id="cartLabel">Cart</div><button class="btn small noprint" id="printBtn">Print</button><button class="btn small noprint" id="clearBtn">Clear cart</button></div>
       <div id="lines"></div>
     </div>
 
@@ -179,12 +190,19 @@ function toast(m) { const t = document.createElement("div"); t.className = "toas
 
 let pin = LS.get("cart.pin");
 let CODES = [], BY = {}, WAR = [];
-let cart = (() => { try { return JSON.parse(LS.get("cart.v1")) || { lines: [], next: 1 }; } catch { return { lines: [], next: 1 }; } })();
-const save = () => LS.set("cart.v1", JSON.stringify(cart));
+let who = LS.get("cart.who");
+let cart = { lines: [], next: 1 };
+let saveTimer = null;
+function save() {
+  if (!who) return;
+  LS.set("cart.v1." + who.toLowerCase(), JSON.stringify(cart));
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => api("mycart", { body: { who, cart } }).catch(() => toast("Couldn't save your cart - check the connection")), 600);
+}
 
 async function api(a, opts) {
   const o = opts || {};
-  const r = await fetch("/api/cart?a=" + a + (o.q != null ? "&q=" + encodeURIComponent(o.q) : ""), {
+  const r = await fetch("/api/cart?a=" + a + (o.q != null ? "&q=" + encodeURIComponent(o.q) : "") + (o.who ? "&who=" + encodeURIComponent(o.who) : ""), {
     method: o.body ? "POST" : "GET",
     headers: { "Content-Type": "application/json", "x-cart-pin": pin },
     body: o.body ? JSON.stringify(o.body) : undefined,
@@ -201,7 +219,8 @@ async function unlock() {
     CODES = c.codes; BY = Object.fromEntries(CODES.map((x) => [x.code, x]));
     WAR = w.warranty.map((x) => ({ ...x, re: x.match ? new RegExp(x.match, "i") : null }));
     $("gate").classList.add("hidden");
-    render(); renderSheet(); loadMeta();
+    renderSheet(); loadMeta();
+    if (who) await openCart(who); else askWho();
     return true;
   } catch (e) {
     $("gate").classList.remove("hidden");
@@ -213,6 +232,26 @@ async function unlock() {
 $("pinGo").onclick = async () => { pin = $("pinIn").value.trim(); if (await unlock()) LS.set("cart.pin", pin); };
 $("pinIn").onkeydown = (e) => { if (e.key === "Enter") $("pinGo").click(); };
 $("lockBtn").onclick = () => { LS.del("cart.pin"); pin = ""; $("pinIn").value = ""; $("pinErr").classList.add("hidden"); $("gate").classList.remove("hidden"); };
+
+// ---------- whose cart ----------
+function askWho() { $("whoIn").value = ""; $("whoErr").classList.add("hidden"); open("whoModal"); setTimeout(() => $("whoIn").focus(), 60); }
+async function openCart(name) {
+  const r = await api("mycart", { q: null, who: name });
+  let local = null; try { local = JSON.parse(LS.get("cart.v1." + name.toLowerCase())); } catch {}
+  cart = r.cart || local || { lines: [], next: 1 };
+  who = name; LS.set("cart.who", who);
+  $("whoBtn").textContent = "👤 " + who;
+  $("cartLabel").textContent = who + "'s cart";
+  render();
+}
+$("whoGo").onclick = async () => {
+  const n = $("whoIn").value.replace(/\s+/g, " ").trim();
+  if (!n) { $("whoErr").textContent = "Enter your name"; $("whoErr").classList.remove("hidden"); return; }
+  try { await openCart(n); close("whoModal"); toast("Opened " + n + "'s cart"); }
+  catch (e) { $("whoErr").textContent = e.message; $("whoErr").classList.remove("hidden"); }
+};
+$("whoIn").onkeydown = (e) => { if (e.key === "Enter") $("whoGo").click(); };
+$("whoBtn").onclick = () => askWho();
 
 // ---------- tabs ----------
 document.querySelectorAll(".tab").forEach((t) => t.onclick = () => {
@@ -433,8 +472,9 @@ async function runSync() {
 function open(id) { $(id).classList.remove("hidden"); }
 function close(id) { $(id).classList.add("hidden"); }
 document.querySelectorAll("[data-close]").forEach((b) => b.onclick = () => b.closest(".modal").classList.add("hidden"));
-document.querySelectorAll(".modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m && m.id !== "gate") m.classList.add("hidden"); }));
+document.querySelectorAll(".modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m && m.id !== "gate" && m.id !== "whoModal") m.classList.add("hidden"); }));
 
+if (who) $("whoBtn").textContent = "👤 " + who;
 render();
 if (pin) unlock(); else $("gate").classList.remove("hidden");
 </script>
