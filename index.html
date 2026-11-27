@@ -255,10 +255,16 @@ $("loginBtn").onclick = async () => {
 };
 $("nameIn").onkeydown = $("pinIn").onkeydown = (e) => { if (e.key === "Enter") $("loginBtn").click(); };
 
-function logout() {
-  LS.del("upboard.name"); LS.del("upboard.mgr"); me = ""; mgrPin = ""; clearInterval(polling); showLogin();
+async function logout(skipLeave) {
+  const leaving = me;
+  clearInterval(polling);
+  if (leaving && skipLeave !== true) { try { await api("POST", { action: "leave", name: leaving, by: leaving }); } catch {} }
+  LS.del("upboard.name"); LS.del("upboard.mgr"); me = ""; mgrPin = ""; state = null; showLogin();
 }
-$("logoutBtn").onclick = logout;
+$("logoutBtn").onclick = () => {
+  if (me && !confirm("Log out and take your name off the board?")) return;
+  logout();
+};
 
 // ---------- board ----------
 function startBoard() {
@@ -305,7 +311,7 @@ function render() {
   if (!inLine) b = `<button class="act join" data-a="join">Join the line</button>`;
   else if (mp.brk) b = `<button class="act back" data-a="back">Back from break<small>go to bottom</small></button>`;
   else if (mp.busy) {
-    b += `<button class="act power" data-a="powerUp">⚡ POWER UP<small>made a sale — back to the top</small></button>`;
+    b += `<button class="act power" data-a="powerUp">⚡ POWER UP<small>made a sale — go right behind who's up</small></button>`;
     b += `<button class="act missw" data-a="missed">Missed<small>no sale — go to bottom</small></button>`;
   } else {
     b += `<button class="act with" data-a="withCustomer">With Customer<small>go to bottom</small></button>`;
