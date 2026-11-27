@@ -275,13 +275,21 @@ function startBoard() {
 document.addEventListener("visibilitychange", () => { if (!document.hidden && me) poll(); });
 
 async function poll() {
-  try { const s = await api("GET"); if (!busy) { state = s; render(); } $("live").classList.remove("off"); }
+  try { const s = await api("GET"); if (!busy && !(state && s.updated < state.updated)) { state = s; render(); } $("live").classList.remove("off"); }
   catch (e) { $("live").classList.add("off"); if (e.status === 401 && e.pinRequired) logout(); }
 }
 
 function mins(t) { if (!t) return ""; const m = Math.floor((Date.now() - t) / 60000); return m < 1 ? "just now" : m + " min"; }
 const away = (p) => !p || p.busy || p.brk;
 function nextUp() { return state.line.find((k) => !away(state.people[k])); }
+
+// taken off the board (removed by a manager, or the board was reset): ask for a name again
+function kicked() {
+  LS.del("upboard.name"); me = ""; $("meName").textContent = "";
+  if (isMgr()) return render();
+  clearInterval(polling);
+  showLogin("You're off the board. Enter your name to join the line.");
+}
 
 function render() {
   if (!state) return;
@@ -292,6 +300,7 @@ function render() {
   const mb = $("mgrBtn"); mb.classList.toggle("on", isMgr()); mb.textContent = isMgr() ? "🔑 Manager ✓" : "🔑 Manager";
   const P = state.people, mk = key(me), mp = P[mk] || { name: me, ups: 0, sales: 0, missed: 0 };
   const inLine = state.line.includes(mk), pos = state.line.indexOf(mk) + 1;
+  if (me && !inLine) return kicked();
   const nk = nextUp(), myTurn = !!me && nk === mk;
 
   // up next
