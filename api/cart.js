@@ -2,6 +2,7 @@
 // Everything needs the cart PIN (CART_PIN env var in Vercel). Uses its own Redis keys (cart:*), never the board's.
 //   GET  /api/cart?a=meta | codes | warranty | search&q=...
 //   POST /api/cart?a=sync  {phase:"start"|"pages"|"finish", start}   -- copies the catalog in small steps
+//   GET  /api/cart?a=mycart&who=Name  /  POST /api/cart?a=mycart {who, cart}  -- one saved cart per salesperson
 
 const CODES = require("./_codes.js");
 const WARRANTY = require("./_warranty.js");
@@ -49,6 +50,12 @@ async function catalog() {
   cache.meta = meta;
   return cache;
 }
+
+// one cart per salesperson, saved for 7 days
+const whoKey = (s) => {
+  const n = String(s || "").replace(/\s+/g, " ").trim().slice(0, 30).toLowerCase();
+  return /^[\p{L}\p{N} .'-]+$/u.test(n) ? n : "";
+};
 
 const norm = (s) => String(s || "").toUpperCase().replace(/[^A-Z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 
@@ -152,6 +159,22 @@ module.exports = async (req, res) => {
       if (a === "warranty") return res.json({ warranty: WARRANTY.map((c) => ({ ...c, match: c.match ? c.match.source : null })) });
       if (a === "meta") { const c = await catalog(); return res.json({ zone: ZONE, store: "4P St. Catharines", catalog: c.meta || null, sync: await getJSON("cart:cat:sync") }); }
       if (a === "search") { const c = await catalog(); return res.json({ results: search(c.items, req.query.q), count: c.items.length }); }
+      if (a === "mycart") {
+        const who = whoKey(req.query.who);
+        if (!who) return res.status(400).json({ error: "Enter your name" });
+        return res.json({ cart: await getJSON("cart:user:" + who) });
+      }
+    }
+    if (req.method === "POST" && a === "mycart") {
+      let body = req.body; if (typeof body === "string") body = JSON.parse(body || "{}");
+      const who = whoKey(body && body.who);
+      const c = body && body.cart;
+      if (!who) return res.status(400).json({ error: "Enter your name" });
+      if (!c || !Array.isArray(c.lines) || c.lines.length > 300) return res.status(400).json({ error: "Bad cart" });
+      const data = JSON.stringify({ lines: c.lines, next: +c.next || 1, savedAt: Date.now() });
+      if (data.length > 300000) return res.status(400).json({ error: "Cart too big" });
+      await redis(["SET", "cart:user:" + who, data, "EX", "604800"]);
+      return res.json({ ok: true });
     }
     if (req.method === "POST" && a === "sync") {
       let body = req.body; if (typeof body === "string") body = JSON.parse(body || "{}");
