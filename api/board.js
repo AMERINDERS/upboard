@@ -5,19 +5,18 @@
 // Rules (change here if your store does it differently):
 //   join          -> added to the BOTTOM of the line
 //   withCustomer  -> counts an up, goes to the BOTTOM, marked "with customer"
-//   powerUp       -> counts a sale, goes to the TOP (set POWER_UP_TO = "bottom" to change)
+//   powerUp       -> counts a sale, goes right BELOW whoever is up next
 //   missed        -> (after With Customer) no sale, counts a miss, goes to the BOTTOM
 //   break         -> on break: stays listed but is skipped for ups
 //   back          -> back from break, goes to the BOTTOM
 //   free          -> (manager) done with customer, no count
-//   leave         -> (manager) removed from the board
+//   leave         -> removed from the board (log out, or manager)
 //   moveUp / moveDown -> manager nudges someone one spot
 //   makeUp        -> manager puts someone at the TOP (they're up next)
 //   reset         -> clears the board and today's counts
 // Staff can only act on themselves. Acting on someone else, makeUp, moving
 // people and reset need the manager PIN (MANAGER_PIN env var in Vercel).
 
-const POWER_UP_TO = "top";
 const KEY = "upboard:state";
 const LOCK = "upboard:lock";
 const CACHE_MS = 1500;
@@ -86,6 +85,11 @@ function person(state, name) {
 
 function toBottom(state, k) { state.line = state.line.filter((x) => x !== k); state.line.push(k); }
 function toTop(state, k) { state.line = state.line.filter((x) => x !== k); state.line.unshift(k); }
+function belowUp(state, k) {
+  state.line = state.line.filter((x) => x !== k);
+  const i = state.line.findIndex((x) => { const q = state.people[x]; return q && !q.busy && !q.brk; });
+  state.line.splice(i === -1 ? 0 : i + 1, 0, k);
+}
 
 function apply(state, action, name, by) {
   const k = keyOf(name);
@@ -111,7 +115,7 @@ function apply(state, action, name, by) {
       break;
     case "powerUp":
       p.sales++; p.busy = false; p.brk = false; p.since = null;
-      POWER_UP_TO === "top" ? toTop(state, k) : toBottom(state, k);
+      belowUp(state, k);
       log(`⚡ ${p.name} POWER UP — made a sale!`);
       break;
     case "free":
@@ -129,8 +133,9 @@ function apply(state, action, name, by) {
       log(`${p.name} is back from break — to the bottom`);
       break;
     case "leave":
-      state.line = state.line.filter((x) => x !== k); p.busy = false; p.since = null;
+      state.line = state.line.filter((x) => x !== k); p.busy = false; p.brk = false; p.since = null;
       log(`${p.name} left the board`);
+      if (!p.ups && !p.sales && !p.missed) delete state.people[k];
       break;
     case "makeUp":
       p.busy = false; p.brk = false; p.since = null; toTop(state, k);
@@ -191,7 +196,7 @@ module.exports = async (req, res) => {
 
       if (action !== "reset" && !name) return res.status(400).json({ error: "Name required" });
 
-      const selfActions = ["join", "withCustomer", "missed", "powerUp", "break", "back"];
+      const selfActions = ["join", "withCustomer", "missed", "powerUp", "break", "back", "leave"];
       const onSelf = name && by && keyOf(name) === keyOf(by);
       if (!(selfActions.includes(action) && onSelf) && !isManager) {
         return res.status(403).json({ error: "Only a manager can do that" });
