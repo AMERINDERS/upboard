@@ -17,8 +17,10 @@
 // Staff can only act on themselves. Acting on someone else, makeUp, moving
 // people and reset need the manager PIN (MANAGER_PIN env var in Vercel).
 
-const KEY = "upboard:state";
-const LOCK = "upboard:lock";
+// Test copies (Vercel "preview") use their own board so testing never touches the live line.
+const PREFIX = process.env.VERCEL_ENV === "preview" ? "upboard-preview" : "upboard";
+const KEY = PREFIX + ":state";
+const LOCK = PREFIX + ":lock";
 const CACHE_MS = 1500;
 
 const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
