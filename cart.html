@@ -378,6 +378,8 @@ function showCode() {
     const before = E.lineCalc(codeLine, BY).total;
     const after = E.lineCalc({ ...codeLine, codes: [...(codeLine.codes || []), code] }, BY).total;
     preview = `<div class="ok">This item: ${money(before)} → <b>${money(after)}</b> (−${money(Math.round((before - after) * 100) / 100)})</div>`;
+    const freeCode = r.type === "freeUnits" || (r.type === "pct" && r.value === 100);
+    if (after === 0 && before > 0 && !freeCode) preview += `<div class="err">This code would make the item $0. Double-check: the website price may already include this saving.</div>`;
   }
   $("codeInfo").innerHTML = `<div class="card" style="margin:10px 0 0;box-shadow:none;border:2px solid var(--line)">${ruleCard(r)}</div>
     ${chk.errors.map((x) => `<div class="err">${esc(x)}</div>`).join("")}

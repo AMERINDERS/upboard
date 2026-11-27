@@ -78,6 +78,9 @@
     if (todayISO && rule.to && todayISO > rule.to) warnings.push("EXPIRED - this offer ended " + rule.to);
     if (todayISO && rule.from && todayISO < rule.from) warnings.push("NOT STARTED - this offer starts " + rule.from);
     if (rule.verify) warnings.push("Needs checking: " + rule.verify);
+    const regU = +line.regUnit || 0, unitP = +line.unitPrice || 0;
+    if (rule.type !== "info" && regU > unitP && unitP > 0)
+      warnings.push("This item is already on sale on the website (reg. $" + regU.toFixed(2) + ", now $" + unitP.toFixed(2) + "). Many offers exclude discounted items - make sure this code still applies.");
     if (line.kind === "warranty") warnings.push("This is a warranty line");
     return { ok: errors.length === 0, errors, warnings };
   }
