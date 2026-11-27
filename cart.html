@@ -459,9 +459,15 @@ async function runSync() {
   $("syncBtn").disabled = true;
   try {
     let step = await api("sync", { body: { phase: "start" } });
+    let waits = 0;
     while (step.phase !== "done") {
       $("syncMsg").innerHTML = `<div class="ok">Copying… ${step.count ? step.count.toLocaleString() + " products" : ""}${step.progress ? " (" + step.progress + "%)" : ""}</div>`;
-      step = await api("sync", { body: step });
+      try { step = await api("sync", { body: step }); waits = 0; }
+      catch (e) {
+        if (e.status !== 503 || ++waits > 8) throw e;
+        $("syncMsg").innerHTML = `<div class="warn">thebrick.com asked us to slow down - waiting 30 seconds, then continuing…</div>`;
+        await new Promise((r) => setTimeout(r, 30000));
+      }
     }
     $("syncMsg").innerHTML = `<div class="ok">Done - ${step.count.toLocaleString()} products.</div>`;
     loadMeta();
