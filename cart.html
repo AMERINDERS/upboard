@@ -110,7 +110,7 @@
   <section id="cartTab">
     <div class="card" id="searchCard">
       <div class="label">Add a product</div>
-      <input id="q" type="search" placeholder="SKU or name, e.g. HWQ800HB or queen mattress" autocomplete="off" autocapitalize="characters" />
+      <input id="q" type="search" placeholder="SKU, name, or paste a thebrick.com product link" autocomplete="off" autocapitalize="characters" />
       <div id="results"></div>
       <div class="row" style="margin-top:10px"><button class="btn small" id="customBtn">+ Item not on the website (delivery, etc.)</button></div>
     </div>
@@ -202,7 +202,7 @@ function save() {
 
 async function api(a, opts) {
   const o = opts || {};
-  const r = await fetch("/api/cart?a=" + a + (o.q != null ? "&q=" + encodeURIComponent(o.q) : "") + (o.who ? "&who=" + encodeURIComponent(o.who) : ""), {
+  const r = await fetch("/api/cart?a=" + a + (o.q != null ? "&q=" + encodeURIComponent(o.q) : "") + (o.who ? "&who=" + encodeURIComponent(o.who) : "") + (o.url ? "&url=" + encodeURIComponent(o.url) : ""), {
     method: o.body ? "POST" : "GET",
     headers: { "Content-Type": "application/json", "x-cart-pin": pin },
     body: o.body ? JSON.stringify(o.body) : undefined,
@@ -266,14 +266,15 @@ async function doSearch() {
   const q = $("q").value.trim();
   if (q.length < 2) { $("results").innerHTML = ""; return; }
   try {
-    const r = await api("search", { q });
+    const isLink = /\/products\//i.test(q);
+    const r = isLink ? await api("lookup", { url: q }) : await api("search", { q });
     lastResults = r.results;
     $("results").innerHTML = r.results.length ? r.results.map((p, i) => `
       <div class="res"><div class="grow"><div class="t">${esc(p.title)}</div>
         <div class="mut"><span class="sku">${esc(p.sku)}</span> ${esc(p.vendor)} · ${esc(p.type)}</div></div>
         <div style="text-align:right"><div class="price">${money(p.price)}</div>${p.regular ? `<div class="was">${money(p.regular)}</div>` : ""}</div>
         <button class="btn red small" data-add="${i}">Add</button></div>`).join("")
-      : `<div class="mut" style="padding:10px 0">${r.count ? "No products found." : "The product list hasn't been copied from thebrick.com yet - see the bottom of this page."}</div>`;
+      : `<div class="mut" style="padding:10px 0">${r.count ? "Not found. Open the product on thebrick.com, copy its link and paste it here - the cart will pull it straight from the website." : "The product list hasn't been copied from thebrick.com yet - see the bottom of this page."}</div>`;
   } catch (e) { $("results").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
 $("results").onclick = (e) => {
@@ -457,7 +458,7 @@ async function loadMeta() {
   } catch (e) { $("catCard").textContent = e.message; }
 }
 async function runSync() {
-  if (!confirm("Copy the latest product list and prices from thebrick.com? It takes a few minutes. The cart keeps working meanwhile.")) return;
+  if (!confirm("Copy the latest product list and prices from thebrick.com? It takes about 45 minutes - keep this page open. The cart keeps working meanwhile.")) return;
   $("syncBtn").disabled = true;
   try {
     let step = await api("sync", { body: { phase: "start" } });
