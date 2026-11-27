@@ -5,12 +5,17 @@
 // Rules (change here if your store does it differently):
 //   join          -> added to the BOTTOM of the line
 //   withCustomer  -> counts an up, goes to the BOTTOM, marked "with customer"
-//   missed        -> counts a miss, goes to the BOTTOM
 //   powerUp       -> counts a sale, goes to the TOP (set POWER_UP_TO = "bottom" to change)
-//   free          -> done with customer (no sale), stays where they are in line
-//   leave         -> removed from the board (lunch / going home)
+//   missed        -> (after With Customer) no sale, counts a miss, goes to the BOTTOM
+//   break         -> on break: stays listed but is skipped for ups
+//   back          -> back from break, goes to the BOTTOM
+//   free          -> (manager) done with customer, no count
+//   leave         -> (manager) removed from the board
 //   moveUp / moveDown -> manager nudges someone one spot
+//   makeUp        -> manager puts someone at the TOP (they're up next)
 //   reset         -> clears the board and today's counts
+// Staff can only act on themselves. Acting on someone else, makeUp, moving
+// people and reset need the manager PIN (MANAGER_PIN env var in Vercel).
 
 const POWER_UP_TO = "top";
 const KEY = "upboard:state";
@@ -20,6 +25,7 @@ const CACHE_MS = 1500;
 const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const STORE_PIN = (process.env.STORE_PIN || "").trim();
+const MANAGER_PIN = (process.env.MANAGER_PIN || "").trim();
 
 let memory = null; // fallback when Redis isn't connected (not shared reliably!)
 let cache = { at: 0, state: null };
@@ -74,7 +80,7 @@ const keyOf = (n) => n.toLowerCase();
 
 function person(state, name) {
   const k = keyOf(name);
-  if (!state.people[k]) state.people[k] = { name, ups: 0, sales: 0, missed: 0, busy: false, since: null };
+  if (!state.people[k]) state.people[k] = { name, ups: 0, sales: 0, missed: 0, busy: false, brk: false, since: null };
   return state.people[k];
 }
 
@@ -93,18 +99,18 @@ function apply(state, action, name, by) {
 
   switch (action) {
     case "join":
-      if (!inLine) { toBottom(state, k); p.busy = false; log(`${p.name} joined the line`); }
+      if (!inLine) { toBottom(state, k); p.busy = false; p.brk = false; log(`${p.name} joined the line`); }
       break;
     case "withCustomer":
-      p.ups++; p.busy = true; p.since = Date.now(); toBottom(state, k);
+      p.ups++; p.busy = true; p.brk = false; p.since = Date.now(); toBottom(state, k);
       log(`${p.name} is with a customer`);
       break;
     case "missed":
-      p.missed++; p.busy = false; toBottom(state, k);
+      p.missed++; p.busy = false; p.since = null; toBottom(state, k);
       log(`${p.name} missed — to the bottom`);
       break;
     case "powerUp":
-      p.sales++; p.busy = false; p.since = null;
+      p.sales++; p.busy = false; p.brk = false; p.since = null;
       POWER_UP_TO === "top" ? toTop(state, k) : toBottom(state, k);
       log(`⚡ ${p.name} POWER UP — made a sale!`);
       break;
@@ -113,9 +119,22 @@ function apply(state, action, name, by) {
       if (!inLine) toBottom(state, k);
       log(`${p.name} is free again`);
       break;
+    case "break":
+      p.brk = true; p.busy = false; p.since = Date.now();
+      if (!inLine) toBottom(state, k);
+      log(`${p.name} is on break`);
+      break;
+    case "back":
+      p.brk = false; p.since = null; toBottom(state, k);
+      log(`${p.name} is back from break — to the bottom`);
+      break;
     case "leave":
       state.line = state.line.filter((x) => x !== k); p.busy = false; p.since = null;
       log(`${p.name} left the board`);
+      break;
+    case "makeUp":
+      p.busy = false; p.brk = false; p.since = null; toTop(state, k);
+      log(`${p.name} was made UP — moved to the top`);
       break;
     case "moveUp":
     case "moveDown": {
@@ -138,7 +157,7 @@ function apply(state, action, name, by) {
 }
 
 function view(state) {
-  return { ...state, sharedStorage: !!REDIS_URL, pinRequired: !!STORE_PIN };
+  return { ...state, sharedStorage: !!REDIS_URL, pinRequired: !!STORE_PIN, managerEnabled: !!MANAGER_PIN };
 }
 
 module.exports = async (req, res) => {
@@ -162,7 +181,21 @@ module.exports = async (req, res) => {
       const action = String(body.action || "");
       const name = clean(body.name);
       const by = clean(body.by);
+      const isManager = !!MANAGER_PIN && String(req.headers["x-manager-pin"] || "").trim() === MANAGER_PIN;
+
+      if (action === "managerCheck") {
+        if (!MANAGER_PIN) return res.status(400).json({ error: "Manager PIN isn't set up in Vercel yet" });
+        if (!isManager) return res.status(403).json({ error: "Wrong manager PIN" });
+        return res.json({ ok: true });
+      }
+
       if (action !== "reset" && !name) return res.status(400).json({ error: "Name required" });
+
+      const selfActions = ["join", "withCustomer", "missed", "powerUp", "break", "back"];
+      const onSelf = name && by && keyOf(name) === keyOf(by);
+      if (!(selfActions.includes(action) && onSelf) && !isManager) {
+        return res.status(403).json({ error: "Only a manager can do that" });
+      }
 
       const state = await withLock(async () => {
         const s = apply(await load(), action, name, by);
